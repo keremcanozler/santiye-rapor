@@ -220,6 +220,29 @@
                 }
             }
 
+            // Alias for getStaff
+            async getAllStaff() {
+                return this.getStaff();
+            }
+
+            async saveLogo(logoData) {
+                try {
+                    await this.saveSetting('corporate_logo', logoData);
+                } catch (error) {
+                    console.error('Firebase logo save error:', error);
+                    throw error;
+                }
+            }
+
+            async getLogo() {
+                try {
+                    return await this.getSetting('corporate_logo');
+                } catch (error) {
+                    console.error('Firebase logo get error:', error);
+                    return null;
+                }
+            }
+
             // Realtime listener for reports
             onReportsChange(callback) {
                 this.reportsRef.on('value', (snapshot) => {
@@ -839,8 +862,8 @@
                                     {logo && (
                                         <button onClick={async () => {
                                             setLogo(null);
-                                            await storage.saveSetting('corporate_logo', null);
-                                            showToast('Logo kaldırıldı', 'success');
+                                            await storage.saveLogo(null);
+                                            showToast('✅ Logo kaldırıldı ve Firebase\'den silindi', 'success');
                                         }} className="bg-red-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-red-600 transition-colors">Sil</button>
                                     )}
                                 </div>
