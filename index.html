@@ -837,7 +837,7 @@
                                 <p className="text-xs text-blue-600 font-bold text-center mb-3">Fotoğraflar sıkıştırılıyor...</p>
                             )}
                             <div className="grid grid-cols-3 gap-2">
-                                {currentReport.photos.map((p, i) => (
+                                {(currentReport.photos || []).map((p, i) => (
                                     <div
                                         key={i}
                                         draggable="true"
@@ -951,7 +951,7 @@
                                 <div className="flex items-center gap-2 text-blue-600"><Icon name="Package" size={18} /> <span className="font-black text-xs uppercase">Montaj</span></div>
                                 <button onClick={() => setCurrentReport({ ...currentReport, materials: [...currentReport.materials, { projectNo: '', assemblyNo: '', material: '', quantity: 0, unitWeight: 0, totalWeight: 0 }] })} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"><Icon name="Plus" /></button>
                             </div>
-                            {currentReport.materials.map((m, i) => (
+                            {(currentReport.materials || []).map((m, i) => (
                                 <div
                                     key={i}
                                     draggable="true"
@@ -1075,7 +1075,7 @@
                                     </div>
                                 </div>
                             )}
-                            {currentReport.staff.map((s, i) => (
+                            {(currentReport.staff || []).map((s, i) => (
                                 <div key={i} className="p-5 bg-slate-50 rounded-[1.5rem] border relative space-y-3">
                                     <button onClick={() => setCurrentReport({ ...currentReport, staff: currentReport.staff.filter((_, idx) => idx !== i) })} className="absolute -top-2 -right-2 bg-red-500 text-white p-2 rounded-full shadow-lg hover:bg-red-600 transition-colors"><Icon name="Trash2" size={12} /></button>
                                     <FormInput placeholder="Ad Soyad" value={s.name} onChange={e => {
