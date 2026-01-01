@@ -1291,7 +1291,7 @@
 
                                     <div className="p-1 font-black text-[9px] bg-slate-200 border-b border-black uppercase text-center italic">SAHA FOTOĞRAFLARI</div>
                                     <div className="p-2 grid grid-cols-3 gap-2 border-b border-black bg-white">
-                                        {currentReport.photos.length > 0 ? currentReport.photos.map((p, i) => (
+                                        {(currentReport.photos || []).length > 0 ? (currentReport.photos || []).map((p, i) => (
                                             <div key={i} className="aspect-square border border-slate-200 overflow-hidden"><img src={p} className="w-full h-full object-cover" alt={`Saha ${i + 1}`} /></div>
                                         )) : <div className="col-span-3 text-[9px] text-center py-8 text-slate-300">FOTOĞRAF EKLENMEDİ</div>}
                                     </div>
@@ -1305,7 +1305,7 @@
                                         <div className="col-span-1 p-1 border-r border-black">BİRİM</div>
                                         <div className="col-span-2 p-1 font-black">TOPLAM</div>
                                     </div>
-                                    {currentReport.materials.length > 0 ? currentReport.materials.map((m, i) => (
+                                    {(currentReport.materials || []).length > 0 ? (currentReport.materials || []).map((m, i) => (
                                         <div key={i} className="grid grid-cols-12 border-b border-black text-[8px] text-center font-bold">
                                             <div className="col-span-2 p-1 border-r border-black">{m.projectNo}</div>
                                             <div className="col-span-2 p-1 border-r border-black">{m.assemblyNo}</div>
@@ -1330,7 +1330,7 @@
                                         <div className="col-span-2 p-1 border-r border-black">ÇIKIŞ</div>
                                         <div className="col-span-2 p-1">MEVKİ</div>
                                     </div>
-                                    {currentReport.staff.length > 0 ? currentReport.staff.map((s, i) => (
+                                    {(currentReport.staff || []).length > 0 ? (currentReport.staff || []).map((s, i) => (
                                         <div key={i} className="grid grid-cols-12 border-b border-black text-[8px] text-center font-bold uppercase italic py-1">
                                             <div className="col-span-4 p-1 border-r border-black text-left pl-2">{s.name}</div>
                                             <div className="col-span-2 p-1 border-r border-black">{s.task}</div>
