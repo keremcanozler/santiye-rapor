@@ -24,8 +24,8 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <!-- Google Drive API -->
-    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-    <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" async defer></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
@@ -548,29 +548,46 @@
                     try {
                         await storage.init();
                         showToast('🔥 Firebase bağlantısı kuruldu - Cloud sync aktif!', 'success');
-
-                        const savedData = await storage.getAllReports();
-                        if (savedData) {
-                            setReports(savedData);
-                        }
-
-                        const savedLogo = await storage.getSetting('corporate_logo');
-                        if (savedLogo) {
-                            setLogo(savedLogo);
-                        }
-
-                        const savedPersonnel = await storage.getStaff();
-                        if (savedPersonnel) {
-                            setSavedStaff(savedPersonnel);
-                        }
-
-                        setLoading(false);
+                        const [reportsData, logoData, staffData] = await Promise.all([
+                            storage.getAllReports(),
+                            storage.getLogo(),
+                            storage.getAllStaff()
+                        ]);
+                        setReports(reportsData);
+                        setLogo(logoData);
+                        setSavedStaff(staffData);
                     } catch (error) {
-                        console.error('Veri yükleme hatası:', error);
-                        showToast('❌ Firebase bağlantı hatası: ' + error.message, 'error');
+                        console.error('Firebase init error:', error);
+                        showToast('⚠️ Firebase bağlantısı kurulamadı', 'error');
+                    } finally {
                         setLoading(false);
                     }
                 })();
+            }, []);
+
+            // Google Drive API initialization
+            useEffect(() => {
+                const initGoogleAPIs = () => {
+                    const checkAndInit = setInterval(() => {
+                        if (typeof gapi !== 'undefined' && typeof google !== 'undefined') {
+                            clearInterval(checkAndInit);
+
+                            // Initialize GAPI
+                            if (typeof gapiLoaded === 'function') {
+                                gapiLoaded();
+                            }
+
+                            // Initialize GIS
+                            if (typeof gisLoaded === 'function') {
+                                gisLoaded();
+                            }
+                        }
+                    }, 100);
+
+                    setTimeout(() => clearInterval(checkAndInit), 10000);
+                };
+
+                initGoogleAPIs();
             }, []);
 
             // Realtime Firebase listener
