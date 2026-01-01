@@ -229,6 +229,18 @@
             offReportsChange() {
                 this.reportsRef.off('value');
             }
+
+            // Reset all data (dangerous!)
+            async resetAllData() {
+                try {
+                    await this.reportsRef.remove();
+                    await this.settingsRef.remove();
+                    await this.staffRef.remove();
+                } catch (error) {
+                    console.error('Firebase reset error:', error);
+                    throw error;
+                }
+            }
         }
 
         const storage = new FirebaseManager();
@@ -659,6 +671,41 @@
                                             Raporlar bulutta saklanıyor - <span className="font-black">Tüm cihazlarda senkronize</span>!
                                             Telefonda kaydedersen bilgisayarda görürsün.
                                         </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Data Reset - Dangerous! */}
+                            <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4">
+                                <div className="flex items-start gap-3">
+                                    <Icon name="AlertTriangle" size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+                                    <div className="flex-1">
+                                        <p className="text-xs font-black text-red-900 uppercase mb-1">⚠️ Tehlikeli Bölge</p>
+                                        <p className="text-[10px] text-red-800 leading-relaxed mb-3">
+                                            Tüm raporları, fotoğrafları ve ayarları <span className="font-black">kalıcı olarak sil</span>.
+                                            Bu işlem geri alınamaz!
+                                        </p>
+                                        <button
+                                            onClick={async () => {
+                                                if (confirm('⚠️ TÜM VERİLER SİLİNECEK!\n\nTüm raporlar, fotoğraflar, personel ve ayarlar kalıcı olarak silinecek.\n\nEmin misin?')) {
+                                                    if (confirm('Son uyarı! Bu işlem GERİ ALINAMAZ!\n\nDevam etmek istediğine emin misin?')) {
+                                                        try {
+                                                            await storage.resetAllData();
+                                                            setReports([]);
+                                                            setLogo(null);
+                                                            setSavedStaff([]);
+                                                            showToast('✅ Tüm veriler silindi', 'success');
+                                                        } catch (error) {
+                                                            showToast('❌ Silme işlemi başarısız', 'error');
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                            className="w-full bg-red-600 text-white px-4 py-3 rounded-xl text-xs font-black uppercase hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            <Icon name="Trash2" size={16} />
+                                            TÜM VERİLERİ SİL
+                                        </button>
                                     </div>
                                 </div>
                             </div>
