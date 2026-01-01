@@ -875,7 +875,7 @@
                                     </div>
                                 ))}
                             </div>
-                            {currentReport.photos.length === 0 && (
+                            {(currentReport.photos || []).length === 0 && (
                                 <div className="text-center py-8 text-slate-300 text-sm">
                                     <Icon name="Image" size={32} className="mx-auto mb-2 opacity-30" />
                                     <p className="font-bold">Henüz fotoğraf eklenmedi</p>
@@ -1024,7 +1024,7 @@
                                     </div>
                                 </div>
                             ))}
-                            {currentReport.materials.length === 0 && (
+                            {(currentReport.materials || []).length === 0 && (
                                 <div className="text-center py-8 text-slate-300 text-sm">
                                     <Icon name="Package" size={32} className="mx-auto mb-2 opacity-30" />
                                     <p className="font-bold">Montaj kaydı eklenmedi</p>
@@ -1094,7 +1094,7 @@
                                     </div>
                                 </div>
                             ))}
-                            {currentReport.staff.length === 0 && (
+                            {(currentReport.staff || []).length === 0 && (
                                 <div className="text-center py-8 text-slate-300 text-sm">
                                     <Icon name="Users" size={32} className="mx-auto mb-2 opacity-30" />
                                     <p className="font-bold">Personel kaydı eklenmedi</p>
