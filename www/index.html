@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Santiye Raporu</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #fff;
+            margin: 0;
+            padding: 20px;
+            color: #000;
+        }
+
+        .a4-page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        /* Bordered Container */
+        .report-container {
+            border: 2px solid #000;
+            padding: 0;
+        }
+
+        /* Setup Header Grid */
+        .header {
+            display: flex;
+            border-bottom: 2px solid #000;
+        }
+
+        .logo-box {
+            width: 150px;
+            border-right: 2px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+        }
+
+        .logo-box img {
+            max-width: 100%;
+            max-height: 80px;
+        }
+
+        .title-box {
+            flex: 1;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-right: 2px solid #000;
+        }
+
+        .title-main {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .title-sub {
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .meta-box {
+            width: 120px;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .meta-row {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid #000;
+        }
+
+        .meta-row:last-child {
+            border-bottom: none;
+        }
+
+        /* Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-bottom: 2px solid #000;
+        }
+
+        .info-cell {
+            padding: 5px 10px;
+            border-right: 1px solid #000;
+            border-bottom: 1px solid #000;
+            font-size: 12px;
+        }
+
+        .info-cell:nth-child(2n) {
+            border-right: none;
+        }
+
+        .label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        /* Section Headers */
+        .section-header {
+            background: #f0f0f0;
+            border-bottom: 1px solid #000;
+            padding: 5px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* Description */
+        .description-box {
+            padding: 10px;
+            min-height: 100px;
+            font-size: 12px;
+            white-space: pre-wrap;
+            border-bottom: 2px solid #000;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        th,
+        td {
+            border: 1px solid #000;
+            padding: 4px;
+            text-align: center;
+        }
+
+        th {
+            background: #eee;
+        }
+
+        .col-left {
+            text-align: left;
+        }
+
+        /* Photos */
+        .photos-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .photo-item {
+            text-align: center;
+        }
+
+        .photo-img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border: 1px solid #ddd;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 50px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .sign-box {
+            margin-top: 40px;
+        }
+    </style>
+    <script src="js/html2pdf.bundle.min.js"></script>
+</head>
+
+<body>
+
+    <div id="report" class="a4-page">
+        <div class="report-container">
+            <!-- HEADER -->
+            <div class="header">
+                <div class="logo-box">
+                    <img id="logo" src="" alt="Gazioglu Logo" style="display:none"> <!-- Script will set src -->
+                    <span id="logo-text">GAZİOĞLU</span> <!-- Fallback -->
+                </div>
+                <div class="title-box">
+                    <div class="title-main">GÜNLÜK ŞANTİYE RAPORU</div>
+                    <div class="title-sub">GAZİOĞLU ENDÜSTRİYEL MONTAJ</div>
+                </div>
+                <div class="meta-box">
+                    <div class="meta-row"><span id="date"></span></div>
+                    <div class="meta-row">Rapor No: #<span id="reportId"></span></div>
+                </div>
+            </div>
+
+            <!-- INFO -->
+            <div class="info-grid">
+                <div class="info-cell"><span class="label">ŞANTİYE / PROJE:</span> <span id="project"></span></div>
+                <div class="info-cell"><span class="label">İŞVEREN:</span> <span id="customer"></span></div>
+                <div class="info-cell"><span class="label">HAVA DURUMU:</span> <span id="weather"></span></div>
+                <div class="info-cell"><span class="label">ÇALIŞMA SAATLERİ:</span> 08:00 - 18:00</div>
+            </div>
+
+            <!-- DESCRIPTION -->
+            <div class="section-header">YAPILAN İŞLER VE AÇIKLAMALAR</div>
+            <div class="description-box" id="description"></div>
+
+            <!-- PERSONNEL -->
+            <div class="section-header">PERSONEL LİSTESİ</div>
+            <table id="personnel-table">
+                <thead>
+                    <tr>
+                        <th width="10%">No</th>
+                        <th width="40%">Adı Soyadı</th>
+                        <th width="30%">Görevi</th>
+                        <th width="20%">Saat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- JS Injected -->
+                </tbody>
+            </table>
+
+            <!-- MATERIALS -->
+            <div class="section-header">KULLANILAN MALZEMELER</div>
+            <table id="material-table">
+                <thead>
+                    <tr>
+                        <th width="10%">No</th>
+                        <th width="50%">Malzeme Adı</th>
+                        <th width="20%">Birim</th>
+                        <th width="20%">Miktar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- JS Injected -->
+                </tbody>
+            </table>
+
+            <!-- PHOTOS -->
+            <div class="section-header">GÖRSELLER</div>
+            <div class="photos-grid" id="photos-container">
+                <!-- JS Injected -->
+            </div>
+
+        </div>
+
+        <div class="footer">
+            <div>
+                <div>HAZIRLAYAN</div>
+                <div class="sign-box">.........................................</div>
+            </div>
+            <div>
+                <div>ONAYLAYAN</div>
+                <div class="sign-box">.........................................</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.generatePDFFromNative = function(data) {
+            // 1. Populate Data
+            document.getElementById('date').innerText = data.date || '';
+            document.getElementById('reportId').innerText = (Math.floor(Math.random() * 900) + 100); // Random ID for now
+            document.getElementById('project').innerText = data.project || 'BORUSAN BORU DEPREM GÜÇLENDİRME PROJESİ'; // Default fallback
+            document.getElementById('customer').innerText = data.customer || 'BORUSAN';
+            document.getElementById('weather').innerText = data.weather || '';
+            document.getElementById('description').innerText = data.description || '';
+            
+            // Logo
+             if (data.logoBase64) { 
+                 document.getElementById('logo').src = "data:image/png;base64," + data.logoBase64; 
+                 document.getElementById('logo').style.display = 'block'; 
+                 document.getElementById('logo-text').style.display='none'; 
+             }
+
+            // Personnel
+            const pBody = document.querySelector('#personnel-table tbody');
+            pBody.innerHTML = '';
+            if (data.personnel && data.personnel.length > 0) {
+                data.personnel.forEach((p, index) => {
+                    const tr = `<tr><td>${index+1}</td><td class="col-left">${p.name}</td><td>${p.role}</td><td>${p.hours}</td></tr>`;
+                    pBody.innerHTML += tr;
+                });
+            } else {
+                pBody.innerHTML = '<tr><td colspan="4">Personel girilmedi.</td></tr>';
+            }
+
+            // Materials
+            const mBody = document.querySelector('#material-table tbody');
+            mBody.innerHTML = '';
+            if (data.materials && data.materials.length > 0) {
+                data.materials.forEach((m, index) => {
+                    const tr = `<tr><td>${index+1}</td><td class="col-left">${m.name}</td><td>${m.unit}</td><td>${m.quantity}</td></tr>`;
+                    mBody.innerHTML += tr;
+                });
+            } else {
+                mBody.innerHTML = '<tr><td colspan="4">Malzeme girilmedi.</td></tr>';
+            }
+
+            // PDF Generation
+            const element = document.getElementById('report');
+            const opt = {
+                margin: 0,
+                filename: `rapor_${data.date}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).outputPdf('datauristring').then(function(pdfBase64) {
+                 if (window.Android) {
+                     window.Android.onPDFCreated(pdfBase64);
+                 } else {
+                     console.log("PDF Created (No Native Bridge)");
+                 }
+            }).catch(err => {
+                console.error(err);
+                if (window.Android) window.Android.log("JS Error: " + err.message);
+            });
+        };
+    </script>
+</body>
+
+</html>

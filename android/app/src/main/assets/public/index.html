@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Santiye Raporu</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: white;
+            color: #000;
+        }
+
+        .a4-page {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            padding: 2mm;
+            box-sizing: border-box;
+        }
+
+        .report-container {
+            border: 2px solid #000;
+            padding: 2px;
+            height: 98%;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            border-bottom: 2px solid #000;
+            height: 100px;
+        }
+
+        .logo-box {
+            width: 20%;
+            border-right: 1px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .logo-box img {
+            max-width: 90%;
+            max-height: 80px;
+        }
+
+        .title-box {
+            width: 60%;
+            border-right: 1px solid #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .title-main {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .title-sub {
+            font-size: 14px;
+        }
+
+        .meta-box {
+            width: 20%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .meta-row {
+            flex: 1;
+            border-bottom: 1px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .meta-row:last-child {
+            border-bottom: none;
+        }
+
+        /* INFO GRID */
+        .info-grid {
+            display: flex;
+            flex-wrap: wrap;
+            border-bottom: 2px solid #000;
+        }
+
+        .info-cell {
+            width: 50%;
+            border-right: 1px solid #000;
+            border-bottom: 1px solid #000;
+            padding: 4px;
+            font-size: 12px;
+            box-sizing: border-box;
+        }
+
+        .info-cell:nth-child(2n) {
+            border-right: none;
+        }
+
+        .info-cell:nth-last-child(-n+2) {
+            border-bottom: none;
+        }
+
+        .label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        /* Section Headers */
+        .section-header {
+            background: #f0f0f0;
+            border-bottom: 1px solid #000;
+            padding: 5px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* Description */
+        .description-box {
+            padding: 10px;
+            min-height: 100px;
+            font-size: 12px;
+            white-space: pre-wrap;
+            border-bottom: 2px solid #000;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        th,
+        td {
+            border: 1px solid #000;
+            padding: 4px;
+            text-align: center;
+        }
+
+        th {
+            background: #eee;
+        }
+
+        .col-left {
+            text-align: left;
+        }
+
+        /* Photos */
+        .photos-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .photo-item {
+            text-align: center;
+        }
+
+        .photo-img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border: 1px solid #ddd;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 50px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .sign-box {
+            margin-top: 40px;
+        }
+    </style>
+    <script src="js/html2pdf.bundle.min.js"></script>
+</head>
+
+<body>
+
+    <div id="report" class="a4-page">
+        <div class="report-container">
+            <!-- HEADER -->
+            <div class="header">
+                <div class="logo-box">
+                    <img id="logo" src="" alt="Gazioglu Logo" style="display:none"> <!-- Script will set src -->
+                    <span id="logo-text">GAZİOĞLU</span> <!-- Fallback -->
+                </div>
+                <div class="title-box">
+                    <div class="title-main">GÜNLÜK ŞANTİYE RAPORU</div>
+                    <div class="title-sub">GAZİOĞLU ENDÜSTRİYEL MONTAJ</div>
+                </div>
+                <div class="meta-box">
+                    <div class="meta-row"><span id="date"></span></div>
+                    <div class="meta-row">Rapor No: #<span id="reportId"></span></div>
+                </div>
+            </div>
+
+            <!-- INFO -->
+            <div class="info-grid">
+                <div class="info-cell"><span class="label">ŞANTİYE / PROJE:</span> <span id="project"></span></div>
+                <div class="info-cell"><span class="label">İŞVEREN:</span> <span id="customer"></span></div>
+                <div class="info-cell"><span class="label">HAVA DURUMU:</span> <span id="weather"></span></div>
+                <div class="info-cell"><span class="label">ÇALIŞMA SAATLERİ:</span> 08:00 - 18:00</div>
+            </div>
+
+            <!-- DESCRIPTION -->
+            <div class="section-header">YAPILAN İŞLER VE AÇIKLAMALAR</div>
+            <div class="description-box" id="description"></div>
+
+            <!-- PERSONNEL -->
+            <div class="section-header">PERSONEL LİSTESİ</div>
+            <table id="personnel-table">
+                <thead>
+                    <tr>
+                        <th width="10%">No</th>
+                        <th width="40%">Adı Soyadı</th>
+                        <th width="30%">Görevi</th>
+                        <th width="20%">Saat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- JS Injected -->
+                </tbody>
+            </table>
+
+            <!-- MATERIALS -->
+            <div class="section-header">KULLANILAN MALZEMELER</div>
+            <table id="material-table">
+                <thead>
+                    <tr>
+                        <th width="10%">No</th>
+                        <th width="50%">Malzeme Adı</th>
+                        <th width="20%">Birim</th>
+                        <th width="20%">Miktar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- JS Injected -->
+                </tbody>
+            </table>
+
+            <!-- PHOTOS -->
+            <div class="section-header">GÖRSELLER</div>
+            <div class="photos-grid" id="photos-container">
+                <!-- JS Injected -->
+            </div>
+
+        </div>
+
+        <div class="footer">
+            <div>
+                <div>HAZIRLAYAN</div>
+                <div class="sign-box">.........................................</div>
+            </div>
+            <div>
+                <div>ONAYLAYAN</div>
+                <div class="sign-box">.........................................</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.generatePDFFromNative = function (data) {
+            // 1. Populate Data
+            document.getElementById('date').innerText = data.date || '';
+
+            // ID Logic: Use passed ID or random if missing (should not be random in prod)
+            // Extracting last 4 chars of UUID for brevity if UUID
+            let displayId = data.id || (Math.floor(Math.random() * 900) + 100);
+            if (data.id && data.id.length > 8) {
+                displayId = data.id.substring(0, 8); // Shorten for display
+            }
+            document.getElementById('reportId').innerText = displayId;
+
+            document.getElementById('project').innerText = data.project || 'BORUSAN BORU DEPREM GÜÇLENDİRME PROJESİ';
+            document.getElementById('customer').innerText = data.customer || 'BORUSAN';
+            document.getElementById('weather').innerText = data.weather || '';
+            document.getElementById('description').innerText = data.description || '';
+
+            // Logo
+            if (data.logoBase64) {
+                document.getElementById('logo').src = "data:image/png;base64," + data.logoBase64;
+                document.getElementById('logo').style.display = 'block';
+                document.getElementById('logo-text').style.display = 'none';
+            }
+
+            // Personnel
+            const pBody = document.querySelector('#personnel-table tbody');
+            pBody.innerHTML = '';
+            if (data.personnel && data.personnel.length > 0) {
+                data.personnel.forEach((p, index) => {
+                    const tr = `<tr><td>${index + 1}</td><td class="col-left">${p.name}</td><td>${p.role}</td><td>${p.hours}</td></tr>`;
+                    pBody.innerHTML += tr;
+                });
+            } else {
+                pBody.innerHTML = '<tr><td colspan="4">Personel girilmedi.</td></tr>';
+            }
+
+            // Materials
+            const mBody = document.querySelector('#material-table tbody');
+            mBody.innerHTML = '';
+            if (data.materials && data.materials.length > 0) {
+                data.materials.forEach((m, index) => {
+                    const tr = `<tr><td>${index + 1}</td><td class="col-left">${m.name}</td><td>${m.unit}</td><td>${m.quantity}</td></tr>`;
+                    mBody.innerHTML += tr;
+                });
+            } else {
+                mBody.innerHTML = '<tr><td colspan="4">Malzeme girilmedi.</td></tr>';
+            }
+
+            // Photos (NEW FIX)
+            const pContainer = document.getElementById('photos-container');
+            pContainer.innerHTML = '';
+            if (data.photos && data.photos.length > 0) {
+                data.photos.forEach(base64 => {
+                    const div = document.createElement('div');
+                    div.className = 'photo-item';
+                    div.innerHTML = `<img class="photo-img" src="data:image/jpeg;base64,${base64}">`;
+                    pContainer.appendChild(div);
+                });
+            } else {
+                pContainer.innerHTML = '<div style="grid-column: span 2; text-align: center; color: #999;">Görsel eklenmedi.</div>';
+            }
+
+            // PDF Generation
+            const element = document.getElementById('report');
+            const opt = {
+                margin: 0,
+                filename: `rapor_${data.date}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).outputPdf('datauristring').then(function (pdfBase64) {
+                if (window.Android) {
+                    window.Android.onPDFCreated(pdfBase64);
+                } else {
+                    console.log("PDF Created (No Native Bridge)");
+                }
+            }).catch(err => {
+                console.error(err);
+                if (window.Android) window.Android.log("JS Error: " + err.message);
+            });
+        };
+    </script>
+</body>
+
+</html>

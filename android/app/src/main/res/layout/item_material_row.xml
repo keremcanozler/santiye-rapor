@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingBottom="8dp"
+    android:gravity="center_vertical">
+
+    <EditText
+        android:id="@+id/inputMatName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="2"
+        android:hint="Malzeme"
+        android:background="@drawable/bg_input_selector"
+        android:textSize="13sp"
+        android:padding="12dp"
+        android:textColor="@color/slate_800"
+        android:inputType="textCapSentences"
+        android:layout_marginEnd="4dp"/>
+
+    <EditText
+        android:id="@+id/inputMatUnit"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="0.8"
+        android:hint="Birim"
+        android:background="@drawable/bg_input_selector"
+        android:textSize="13sp"
+        android:padding="12dp"
+        android:textColor="@color/slate_800"
+        android:inputType="text"
+        android:layout_marginEnd="4dp"/>
+
+    <EditText
+        android:id="@+id/inputMatQty"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="0.8"
+        android:hint="Miktar"
+        android:textSize="13sp"
+        android:background="@drawable/bg_input_selector"
+        android:padding="12dp"
+        android:textColor="@color/slate_800"
+        android:inputType="numberDecimal"
+        android:layout_marginEnd="4dp"/>
+
+    <ImageButton
+        android:id="@+id/btnDeleteMat"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:src="@drawable/ic_delete"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:padding="6dp"
+        android:tint="@color/slate_400"
+        android:contentDescription="Sil"/>
+
+</LinearLayout>

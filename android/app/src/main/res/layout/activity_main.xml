@@ -1,0 +1,473 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/white"
+    tools:context=".MainActivity">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#FFFFFF"
+        android:padding="24dp"
+        android:elevation="4dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <View
+            android:layout_width="4dp"
+            android:layout_height="40dp"
+            android:background="@color/gazioglu_blue"
+            android:layout_marginEnd="20dp"/>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="GAZİOĞLU"
+                android:textSize="28sp"
+                android:textStyle="bold|italic"
+                android:textColor="@color/slate_800"
+                android:letterSpacing="-0.02"
+                android:fontFamily="sans-serif-black"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ŞANTİYE RAPOR YÖNETİMİ"
+                android:textSize="11sp"
+                android:textColor="@color/gazioglu_blue"
+                android:letterSpacing="0.25"
+                android:textStyle="bold"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:clipToPadding="false">
+
+            <!-- Date Input -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TARİH"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="@color/slate_600"
+                android:letterSpacing="0.05"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="12dp"/>
+
+            <EditText
+                android:id="@+id/inputDate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_input_selector"
+                android:padding="20dp"
+                android:hint="Tarih Seçiniz"
+                android:focusable="false"
+                android:textColor="@color/slate_800"
+                android:textStyle="bold"
+                android:textSize="15sp"/>
+
+            <!-- Weather Selection -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="HAVA DURUMU"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="@color/slate_600"
+                android:letterSpacing="0.05"
+                android:layout_marginTop="32dp"
+                android:layout_marginBottom="12dp"/>
+            
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none"
+                android:clipToPadding="false">
+                
+                <RadioGroup
+                    android:id="@+id/radioGroupWeather"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    
+                    <RadioButton
+                        android:id="@+id/weatherSunny"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Güneşli"
+                        android:background="@drawable/bg_weather_card_selector"
+                        android:button="@null"
+                        android:textColor="@color/text_weather_selector"
+                        android:paddingStart="24dp"
+                        android:paddingEnd="24dp"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="12dp"
+                        android:textStyle="bold"
+                        android:textSize="13sp"
+                        android:layout_marginEnd="8dp"/>
+
+                    <RadioButton
+                        android:id="@+id/weatherCloudy"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Bulutlu"
+                        android:background="@drawable/bg_weather_card_selector"
+                        android:button="@null"
+                        android:textColor="@color/text_weather_selector"
+                        android:paddingStart="24dp"
+                        android:paddingEnd="24dp"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="12dp"
+                        android:textStyle="bold"
+                        android:textSize="13sp"
+                        android:layout_marginEnd="8dp"/>
+
+                    <RadioButton
+                        android:id="@+id/weatherRainy"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Yağmurlu"
+                        android:background="@drawable/bg_weather_card_selector"
+                        android:button="@null"
+                        android:textColor="@color/text_weather_selector"
+                        android:paddingStart="24dp"
+                        android:paddingEnd="24dp"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="12dp"
+                        android:textStyle="bold"
+                        android:textSize="13sp"
+                        android:layout_marginEnd="8dp"/>
+                        
+                    <RadioButton
+                        android:id="@+id/weatherSnowy"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Karlı"
+                        android:background="@drawable/bg_weather_card_selector"
+                        android:button="@null"
+                        android:textColor="@color/text_weather_selector"
+                        android:paddingStart="24dp"
+                        android:paddingEnd="24dp"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="12dp"
+                        android:textStyle="bold"
+                        android:textSize="13sp"/>
+
+                </RadioGroup>
+            </HorizontalScrollView>
+
+
+            <!-- Customer & Project Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="32dp"
+                android:baselineAligned="false">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="MÜŞTERİ"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/slate_600"
+                        android:letterSpacing="0.05"
+                        android:layout_marginBottom="12dp"/>
+
+                    <EditText
+                        android:id="@+id/inputCustomer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_input_selector"
+                        android:padding="20dp"
+                        android:hint="Örn: BORUSAN"
+                        android:inputType="textCapCharacters"
+                        android:textColor="@color/slate_800"
+                        android:textStyle="bold"
+                        android:textSize="15sp"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="PROJE"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/slate_600"
+                        android:letterSpacing="0.05"
+                        android:layout_marginBottom="12dp"/>
+
+                    <EditText
+                        android:id="@+id/inputProject"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_input_selector"
+                        android:padding="20dp"
+                        android:hint="Örn: BORU HATTI"
+                        android:inputType="textCapCharacters"
+                        android:textColor="@color/slate_800"
+                        android:textStyle="bold"
+                        android:textSize="15sp"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Personnel Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="24dp">
+                
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="PERSONEL LİSTESİ"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/slate_600"
+                    android:letterSpacing="0.05"/>
+                
+                 <Button
+                    android:id="@+id/btnAddPersonnel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="+ Ekle"
+                    android:textColor="@color/gazioglu_blue"
+                    android:background="@android:color/transparent"
+                    style="?android:attr/gridViewStyle"
+                    android:textSize="12sp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/personnelContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="8dp">
+                <!-- Rows added dynamically -->
+            </LinearLayout>
+
+                android:layout_marginTop="32dp"
+                android:layout_marginBottom="12dp"/>
+
+             <!-- Materials Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="24dp">
+                
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="KULLANILAN MALZEMELER"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/slate_600"
+                    android:letterSpacing="0.05"/>
+                
+                 <Button
+                    android:id="@+id/btnAddMaterial"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="+ Ekle"
+                    android:textColor="@color/gazioglu_blue"
+                    android:background="@android:color/transparent"
+                    style="?android:attr/gridViewStyle"
+                    android:textSize="12sp"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/materialsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="8dp">
+                <!-- Rows added dynamically -->
+            </LinearLayout> 
+
+            <!-- Photo Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="24dp">
+                
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="ŞANTİYE GÖRSELLERİ"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/slate_600"
+                    android:letterSpacing="0.05"/>
+                
+                 <Button
+                    android:id="@+id/btnAddPhoto"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="+ Ekle"
+                    android:textColor="@color/gazioglu_blue"
+                    android:background="@android:color/transparent"
+                    style="?android:attr/gridViewStyle"
+                    android:textSize="12sp"/>
+            </LinearLayout>
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp">
+
+                <LinearLayout
+                    android:id="@+id/photosContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <!-- Photos added dynamically -->
+                </LinearLayout>
+            </HorizontalScrollView>
+
+            <!-- Photo Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="24dp">
+                
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="ŞANTİYE GÖRSELLERİ"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/slate_600"
+                    android:letterSpacing="0.05"/>
+                
+                 <Button
+                    android:id="@+id/btnAddPhoto"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="+ Ekle"
+                    android:textColor="@color/gazioglu_blue"
+                    android:background="@android:color/transparent"
+                    style="?android:attr/gridViewStyle"
+                    android:textSize="12sp"/>
+            </LinearLayout>
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp">
+
+                <LinearLayout
+                    android:id="@+id/photosContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <!-- Photos added dynamically -->
+                </LinearLayout>
+            </HorizontalScrollView>
+
+            <!-- Description Input -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="YAPILAN İŞ"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="@color/slate_600"
+                android:letterSpacing="0.05"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="12dp"/>
+
+            <EditText
+                android:id="@+id/inputDescription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minLines="8"
+                android:gravity="top|start"
+                android:background="@drawable/bg_input_selector"
+                android:padding="20dp"
+                android:hint="• Montaj yapıldı..."
+                android:inputType="textMultiLine|textCapSentences"
+                android:textColor="@color/slate_800"
+                android:textSize="15sp"
+                android:lineSpacingExtra="4dp"/>
+
+            <!-- Hidden WebView for PDF Generation -->
+            <WebView
+                android:id="@+id/bgWebView"
+                android:layout_width="1px"
+                android:layout_height="1px"
+                android:visibility="invisible"
+                android:layout_marginTop="50dp"/>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Bottom Button -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="24dp"
+        android:background="#FFFFFF"
+        android:elevation="24dp">
+
+        <Button
+            android:id="@+id/btnGeneratePDF"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:text="PDF RAPORU OLUŞTUR"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.15"
+            android:backgroundTint="@color/gazioglu_blue"
+            android:textColor="#FFFFFF"
+            android:stateListAnimator="@null"
+            android:elevation="0dp"/>
+    </FrameLayout>
+
+</LinearLayout>
