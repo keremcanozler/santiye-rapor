@@ -254,17 +254,17 @@
         const WEATHER_OPTIONS = [
             { id: 'gunesli', label: 'Güneşli', icon: 'Sun' },
             { id: 'bulutlu', label: 'Bulutlu', icon: 'Cloud' },
-            { id: 'yagmurlu', label: 'Yağmurlu', icon: 'CloudDrizzle' },
-            { id: 'sisli', label: 'Sisli', icon: 'CloudFog' },
+            { id: 'yagmurlu', label: 'Yağmurlu', icon: 'Droplets' },
+            { id: 'sisli', label: 'Sisli', icon: 'Cloud' },
             { id: 'ruzgarli', label: 'Rüzgarlı', icon: 'Wind' },
-            { id: 'firtina', label: 'Fırtına', icon: 'CloudLightning' },
+            { id: 'firtina', label: 'Fırtına', icon: 'Zap' },
             { id: 'karli', label: 'Karlı', icon: 'Snowflake' },
-            { id: 'dolu', label: 'Dolu', icon: 'CloudHail' },
+            { id: 'dolu', label: 'Dolu', icon: 'Droplets' },
         ];
 
         const INITIAL_REPORT_STATE = {
-            customer: 'BORUSAN',
-            project: 'BORUSAN BORU',
+            customer: '',
+            project: 'Deprem Güçlendirme Projesi',
             date: new Date().toISOString().split('T')[0],
             weather: 'gunesli',
             description: '',
