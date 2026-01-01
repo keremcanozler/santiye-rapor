@@ -23,6 +23,10 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
+    <!-- Google Drive API -->
+    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" async defer></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
 
@@ -244,6 +248,146 @@
         }
 
         const storage = new FirebaseManager();
+
+        // --- Google Drive API Configuration ---
+        const GOOGLE_CLIENT_ID = '252136145710-qv5k4tbbbdtmtuabvitq3lcqr0nedg60.apps.googleusercontent.com';
+        const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
+        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+
+        let gapiInited = false;
+        let gisInited = false;
+        let tokenClient;
+
+        // Initialize Google API
+        function gapiLoaded() {
+            gapi.load('client', initializeGapiClient);
+        }
+
+        async function initializeGapiClient() {
+            await gapi.client.init({
+                discoveryDocs: DISCOVERY_DOCS,
+            });
+            gapiInited = true;
+        }
+
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: GOOGLE_CLIENT_ID,
+                scope: SCOPES,
+                callback: '', // defined at request time
+            });
+            gisInited = true;
+        }
+
+        // Check if user is signed in
+        function isSignedIn() {
+            return gapi.client.getToken() !== null;
+        }
+
+        // Request access token
+        function requestAccessToken(callback) {
+            tokenClient.callback = async (resp) => {
+                if (resp.error !== undefined) {
+                    throw (resp);
+                }
+                callback();
+            };
+
+            if (gapi.client.getToken() === null) {
+                tokenClient.requestAccessToken({ prompt: 'consent' });
+            } else {
+                tokenClient.requestAccessToken({ prompt: '' });
+            }
+        }
+
+        // Find or create folder
+        async function findOrCreateFolder(folderName) {
+            try {
+                // Search for folder
+                const response = await gapi.client.drive.files.list({
+                    q: `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+                    fields: 'files(id, name)',
+                    spaces: 'drive',
+                });
+
+                if (response.result.files && response.result.files.length > 0) {
+                    return response.result.files[0].id;
+                }
+
+                // Create folder if not found
+                const folder = await gapi.client.drive.files.create({
+                    resource: {
+                        name: folderName,
+                        mimeType: 'application/vnd.google-apps.folder',
+                    },
+                    fields: 'id',
+                });
+
+                return folder.result.id;
+            } catch (error) {
+                console.error('Folder error:', error);
+                throw error;
+            }
+        }
+
+        // Upload PDF to Drive
+        async function uploadPDFToDrive(pdfBlob, fileName, folderId) {
+            try {
+                // Check if file exists
+                const searchResponse = await gapi.client.drive.files.list({
+                    q: `name='${fileName}' and '${folderId}' in parents and trashed=false`,
+                    fields: 'files(id, name)',
+                    spaces: 'drive',
+                });
+
+                let fileId = null;
+                if (searchResponse.result.files && searchResponse.result.files.length > 0) {
+                    fileId = searchResponse.result.files[0].id;
+                }
+
+                const metadata = {
+                    name: fileName,
+                    mimeType: 'application/pdf',
+                };
+
+                if (!fileId) {
+                    metadata.parents = [folderId];
+                }
+
+                const form = new FormData();
+                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                form.append('file', pdfBlob);
+
+                const url = fileId
+                    ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
+                    : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+
+                const method = fileId ? 'PATCH' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: new Headers({ 'Authorization': 'Bearer ' + gapi.client.getToken().access_token }),
+                    body: form,
+                });
+
+                return response.json();
+            } catch (error) {
+                console.error('Upload error:', error);
+                throw error;
+            }
+        }
+
+        // Generate filename
+        function generateFileName(report) {
+            const date = new Date(report.date).toLocaleDateString('tr-TR').replace(/\./g, '-');
+            const project = report.project.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-ğüşıöçĞÜŞİÖÇ]/g, '');
+            return `Rapor_${date}_${project}.pdf`;
+        }
+
+        // Load Google API on page load
+        window.gapiLoaded = gapiLoaded;
+        window.gisLoaded = gisLoaded;
+
 
         // --- Icons Helper ---
         const Icon = ({ name, size = 20, className = "" }) => {
@@ -1236,7 +1380,57 @@
             };
 
             const Preview = () => {
+                const [uploading, setUploading] = React.useState(false);
                 const totalWeight = (currentReport.materials || []).reduce((sum, m) => sum + (m.totalWeight || 0), 0);
+
+                const handleDriveUpload = async () => {
+                    try {
+                        if (!gapiInited || !gisInited) {
+                            showToast('❌ Google Drive yükleniyor, lütfen bekleyin...', 'error');
+                            return;
+                        }
+
+                        const uploadProcess = async () => {
+                            setUploading(true);
+                            showToast('📤 PDF oluşturuluyor...', 'info');
+
+                            // Generate PDF
+                            const element = document.getElementById('report-to-pdf');
+                            const opt = {
+                                margin: 0,
+                                filename: generateFileName(currentReport),
+                                image: { type: 'jpeg', quality: 0.98 },
+                                html2canvas: { scale: 2 },
+                                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                            };
+
+                            const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+
+                            showToast('☁️ Google Drive\'a yükleniyor...', 'info');
+
+                            // Find or create folder
+                            const folderId = await findOrCreateFolder('Şantiye Raporları');
+
+                            // Upload PDF
+                            const fileName = generateFileName(currentReport);
+                            await uploadPDFToDrive(pdfBlob, fileName, folderId);
+
+                            showToast('✅ PDF başarıyla Drive\'a yüklendi!', 'success');
+                            setUploading(false);
+                        };
+
+                        if (!isSignedIn()) {
+                            requestAccessToken(uploadProcess);
+                        } else {
+                            await uploadProcess();
+                        }
+                    } catch (error) {
+                        console.error('Drive upload error:', error);
+                        showToast('❌ Yükleme başarısız: ' + (error.message || 'Bilinmeyen hata'), 'error');
+                        setUploading(false);
+                    }
+                };
+
                 return (
                     <div className="min-h-screen bg-slate-900 pb-20 overflow-x-hidden">
                         <nav className="bg-white border-b px-4 py-6 sticky top-0 z-50 flex items-center justify-between">
@@ -1244,9 +1438,26 @@
                                 <Icon name="ChevronLeft" size={28} />
                                 <span className="font-bold text-sm">Geri</span>
                             </button>
-                            <button onClick={generatePDF} className="bg-blue-600 text-white px-6 py-3 rounded-[1.2rem] text-xs font-black flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-colors">
-                                <Icon name="FileDown" size={18} /> PDF İNDİR
-                            </button>
+                            <div className="flex gap-3">
+                                <button onClick={generatePDF} className="bg-blue-600 text-white px-6 py-3 rounded-[1.2rem] text-xs font-black flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-colors">
+                                    <Icon name="FileDown" size={18} /> PDF İNDİR
+                                </button>
+                                <button
+                                    onClick={handleDriveUpload}
+                                    disabled={uploading}
+                                    className="bg-green-600 text-white px-6 py-3 rounded-[1.2rem] text-xs font-black flex items-center gap-2 shadow-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {uploading ? (
+                                        <>
+                                            <Icon name="Loader" size={18} className="animate-spin" /> YÜKLENIYOR...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Icon name="Upload" size={18} /> DRIVE'A YÜKLE
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </nav>
 
                         <div className="p-0 md:p-12 flex justify-center">
