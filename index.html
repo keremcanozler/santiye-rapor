@@ -778,14 +778,19 @@
                         compressedPhotos.push(compressed);
                     }
 
-                    setCurrentReport(prev => ({
-                        ...prev,
-                        photos: [...prev.photos, ...compressedPhotos]
-                    }));
+                    setCurrentReport(prev => {
+                        // Güvenli spread - prev.photos undefined olabilir
+                        const existingPhotos = Array.isArray(prev.photos) ? prev.photos : [];
+                        return {
+                            ...prev,
+                            photos: [...existingPhotos, ...compressedPhotos]
+                        };
+                    });
 
                     showToast(`${compressedPhotos.length} fotoğraf eklendi`, 'success');
                 } catch (error) {
-                    showToast('Fotoğraf yükleme hatası', 'error');
+                    console.error('Fotoğraf yükleme hatası:', error);
+                    showToast('❌ Fotoğraf yükleme hatası: ' + error.message, 'error');
                 } finally {
                     setCompressingPhotos(false);
                 }
