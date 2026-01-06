@@ -1092,7 +1092,7 @@
             useEffect(() => {
                 if ('serviceWorker' in navigator) {
                     window.addEventListener('load', () => {
-                        navigator.serviceWorker.register('/service-worker.js')
+                        navigator.serviceWorker.register('./service-worker.js')  // Göreceli yol (GitHub Pages fix)
                             .then((registration) => {
                                 console.log('✅ SW registered:', registration.scope);
                                 showToast('📦 Offline mode aktif!', 'success');
