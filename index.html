@@ -2113,9 +2113,14 @@
                                 <span className="font-bold text-sm">Geri</span>
                             </button>
                             <div className="flex gap-3">
-                                <button onClick={generatePDF} className="bg-blue-600 text-white px-6 py-3 rounded-[1.2rem] text-xs font-black flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-colors">
-                                    <Icon name="FileDown" size={18} /> PDF İNDİR
-                                </button>
+                                <div className="flex gap-3">
+                                    <button onClick={generatePDF} className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-[1.2rem] text-xs font-black flex items-center justify-center gap-2 shadow-lg hover:bg-blue-700 transition-colors">
+                                        <Icon name="FileDown" size={18} /> PDF İNDİR
+                                    </button>
+                                    <button onClick={() => exportToExcel(currentReport)} className="flex-1 bg-green-600 text-white px-6 py-3 rounded-[1.2rem] text-xs font-black flex items-center justify-center gap-2 shadow-lg hover:bg-green-700 transition-colors">
+                                        <Icon name="FileSpreadsheet" size={18} /> EXCEL İNDİR
+                                    </button>
+                                </div>
                                 <button
                                     onClick={handleDriveUpload}
                                     disabled={uploading}
