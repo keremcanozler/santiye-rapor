@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#2563eb">
-    <title>Gazioğlu Endüstriyel - Şantiye Rapor Sistemi v7 (Firebase Cloud)</title>
+    <title>Gazioğlu Endüstriyel - Şantiye Rapor Sistemi v7 (TEST - Local Development)</title>
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
@@ -147,33 +147,24 @@
             }
 
             async saveReport(report) {
-                try {
+                return retryWithBackoff(async () => {
                     await this.reportsRef.child(report.id).set(report);
-                } catch (error) {
-                    console.error('Firebase save error:', error);
-                    throw error;
-                }
+                }, 3, 'Rapor kaydetme');
             }
 
             async getAllReports() {
-                try {
+                return retryWithBackoff(async () => {
                     const snapshot = await this.reportsRef.once('value');
                     const data = snapshot.val();
                     if (!data) return [];
                     return Object.values(data);
-                } catch (error) {
-                    console.error('Firebase get error:', error);
-                    throw error;
-                }
+                }, 3, 'Raporları yükleme');
             }
 
             async deleteReport(reportId) {
-                try {
+                return retryWithBackoff(async () => {
                     await this.reportsRef.child(reportId).remove();
-                } catch (error) {
-                    console.error('Firebase delete error:', error);
-                    throw error;
-                }
+                }, 3, 'Rapor silme');
             }
 
             async saveSetting(key, value) {
@@ -271,6 +262,310 @@
         }
 
         const storage = new FirebaseManager();
+
+        // ========================================
+        // INDEXEDDB MANAGER - Unlimited Storage
+        // ========================================
+        class IndexedDBManager {
+            constructor() {
+                this.dbName = 'GaziogluDB';
+                this.version = 1;
+                this.db = null;
+            }
+
+            async init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, this.version);
+
+                    request.onerror = () => {
+                        console.error('❌ IndexedDB error:', request.error);
+                        reject(request.error);
+                    };
+
+                    request.onsuccess = () => {
+                        this.db = request.result;
+                        console.log('✅ IndexedDB initialized:', this.dbName);
+                        resolve();
+                    };
+
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        console.log('🔧 IndexedDB upgrading...');
+
+                        // Reports store
+                        if (!db.objectStoreNames.contains('reports')) {
+                            const reportStore = db.createObjectStore('reports', { keyPath: 'id' });
+                            reportStore.createIndex('date', 'date', { unique: false });
+                            reportStore.createIndex('customer', 'customer', { unique: false });
+                            reportStore.createIndex('project', 'project', { unique: false });
+                            console.log('✅ Created reports store');
+                        }
+
+                        // Photos store
+                        if (!db.objectStoreNames.contains('photos')) {
+                            const photoStore = db.createObjectStore('photos', { keyPath: 'id' });
+                            photoStore.createIndex('reportId', 'reportId', { unique: false });
+                            console.log('✅ Created photos store');
+                        }
+
+                        // Sync queue store
+                        if (!db.objectStoreNames.contains('syncQueue')) {
+                            const syncStore = db.createObjectStore('syncQueue', { keyPath: 'id', autoIncrement: true });
+                            syncStore.createIndex('timestamp', 'timestamp', { unique: false });
+                            syncStore.createIndex('action', 'action', { unique: false });
+                            console.log('✅ Created syncQueue store');
+                        }
+                    };
+                });
+            }
+
+            // ========================================
+            // REPORTS CRUD
+            // ========================================
+            async saveReport(report) {
+                const transaction = this.db.transaction(['reports'], 'readwrite');
+                const store = transaction.objectStore('reports');
+                return new Promise((resolve, reject) => {
+                    const request = store.put(report);
+                    request.onsuccess = () => {
+                        console.log('✅ IndexedDB: Report saved:', report.id);
+                        resolve();
+                    };
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async getAllReports() {
+                const transaction = this.db.transaction(['reports'], 'readonly');
+                const store = transaction.objectStore('reports');
+                return new Promise((resolve, reject) => {
+                    const request = store.getAll();
+                    request.onsuccess = () => {
+                        console.log('✅ IndexedDB: Retrieved', request.result.length, 'reports');
+                        resolve(request.result);
+                    };
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async getReport(reportId) {
+                const transaction = this.db.transaction(['reports'], 'readonly');
+                const store = transaction.objectStore('reports');
+                return new Promise((resolve, reject) => {
+                    const request = store.get(reportId);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async deleteReport(reportId) {
+                const transaction = this.db.transaction(['reports'], 'readwrite');
+                const store = transaction.objectStore('reports');
+                return new Promise((resolve, reject) => {
+                    const request = store.delete(reportId);
+                    request.onsuccess = () => {
+                        console.log('✅ IndexedDB: Report deleted:', reportId);
+                        resolve();
+                    };
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            // ========================================
+            // PHOTOS CRUD
+            // ========================================
+            async savePhoto(photo) {
+                const transaction = this.db.transaction(['photos'], 'readwrite');
+                const store = transaction.objectStore('photos');
+                return new Promise((resolve, reject) => {
+                    const request = store.put(photo);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async getPhoto(photoId) {
+                const transaction = this.db.transaction(['photos'], 'readonly');
+                const store = transaction.objectStore('photos');
+                return new Promise((resolve, reject) => {
+                    const request = store.get(photoId);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async getPhotosByReportId(reportId) {
+                const transaction = this.db.transaction(['photos'], 'readonly');
+                const store = transaction.objectStore('photos');
+                const index = store.index('reportId');
+                return new Promise((resolve, reject) => {
+                    const request = index.getAll(reportId);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            // ========================================
+            // SYNC QUEUE CRUD
+            // ========================================
+            async addToSyncQueue(action, data) {
+                const transaction = this.db.transaction(['syncQueue'], 'readwrite');
+                const store = transaction.objectStore('syncQueue');
+                const item = {
+                    action,
+                    data,
+                    timestamp: new Date().toISOString(),
+                    retries: 0
+                };
+                return new Promise((resolve, reject) => {
+                    const request = store.add(item);
+                    request.onsuccess = () => {
+                        console.log('✅ IndexedDB: Added to sync queue:', action);
+                        resolve(request.result);
+                    };
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async getSyncQueue() {
+                const transaction = this.db.transaction(['syncQueue'], 'readonly');
+                const store = transaction.objectStore('syncQueue');
+                return new Promise((resolve, reject) => {
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async removeSyncQueueItem(id) {
+                const transaction = this.db.transaction(['syncQueue'], 'readwrite');
+                const store = transaction.objectStore('syncQueue');
+                return new Promise((resolve, reject) => {
+                    const request = store.delete(id);
+                    request.onsuccess = () => {
+                        console.log('✅ IndexedDB: Removed from sync queue:', id);
+                        resolve();
+                    };
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async updateSyncQueueItem(item) {
+                const transaction = this.db.transaction(['syncQueue'], 'readwrite');
+                const store = transaction.objectStore('syncQueue');
+                return new Promise((resolve, reject) => {
+                    const request = store.put(item);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            }
+        }
+
+        const localDB = new IndexedDBManager();
+
+        // ========================================
+        // SYNC QUEUE - Background Sync
+        // ========================================
+        class SyncQueue {
+            constructor() {
+                this.syncing = false;
+            }
+
+            async processQueue() {
+                if (this.syncing || !navigator.onLine) {
+                    console.log('⏸️ Sync paused:', this.syncing ? 'already syncing' : 'offline');
+                    return;
+                }
+
+                this.syncing = true;
+                console.log('🔄 Starting sync queue processing...');
+
+                try {
+                    const queue = await localDB.getSyncQueue();
+
+                    if (queue.length === 0) {
+                        console.log('✅ Sync queue empty');
+                        this.syncing = false;
+                        return;
+                    }
+
+                    showToast(`🔄 ${queue.length} değişiklik senkronize ediliyor...`, 'info');
+
+                    for (const item of queue) {
+                        try {
+                            console.log(`🔄 Processing: ${item.action}`, item.data);
+
+                            switch (item.action) {
+                                case 'saveReport':
+                                    await storage.saveReport(item.data);
+                                    console.log('✅ Synced report:', item.data.id);
+                                    break;
+
+                                case 'deleteReport':
+                                    await storage.deleteReport(item.data.id);
+                                    console.log('✅ Synced delete:', item.data.id);
+                                    break;
+
+                                case 'saveSetting':
+                                    await storage.saveSetting(item.data.key, item.data.value);
+                                    console.log('✅ Synced setting:', item.data.key);
+                                    break;
+
+                                default:
+                                    console.warn('⚠️ Unknown action:', item.action);
+                            }
+
+                            // Success - remove from queue
+                            await localDB.removeSyncQueueItem(item.id);
+
+                        } catch (error) {
+                            console.error(`❌ Sync failed for ${item.action}:`, error);
+
+                            // Increment retry count
+                            item.retries = (item.retries || 0) + 1;
+
+                            if (item.retries >= 3) {
+                                // Max retries - remove from queue
+                                await localDB.removeSyncQueueItem(item.id);
+                                showToast(`❌ ${item.action} başarısız (3 deneme)`, 'error');
+                                console.error('❌ Max retries reached, removed from queue:', item);
+                            } else {
+                                // Update retry count
+                                await localDB.updateSyncQueueItem(item);
+                                console.log(`⚠️ Retry ${item.retries}/3 for ${item.action}`);
+                            }
+                        }
+                    }
+
+                    const remainingQueue = await localDB.getSyncQueue();
+                    if (remainingQueue.length === 0) {
+                        showToast('✅ Tüm değişiklikler senkronize edildi!', 'success');
+                    } else {
+                        showToast(`⚠️ ${remainingQueue.length} değişiklik senkronize edilemedi`, 'warning');
+                    }
+
+                } catch (error) {
+                    console.error('❌ Sync queue error:', error);
+                } finally {
+                    this.syncing = false;
+                }
+            }
+
+            startAutoSync() {
+                // Auto-sync when online
+                window.addEventListener('online', () => {
+                    console.log('🌐 Online - starting auto-sync');
+                    setTimeout(() => this.processQueue(), 1000);
+                });
+
+                // Initial sync if online
+                if (navigator.onLine) {
+                    setTimeout(() => this.processQueue(), 2000);
+                }
+            }
+        }
+
+        const syncQueue = new SyncQueue();
 
         // --- Google Drive API Configuration ---
         const GOOGLE_CLIENT_ID = '252136145710-qv5k4tbbbdtmtuabvitq3lcqr0nedg60.apps.googleusercontent.com';
@@ -442,16 +737,22 @@
         };
 
         // --- Utility Functions ---
-        const compressImage = (file, maxWidth = 1200, quality = 0.8) => {
+        // ========================================
+        // PHOTO COMPRESSION - WebP + Aggressive
+        // ========================================
+        const compressImage = (file, maxWidth = 800, quality = 0.7) => {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
+
                 reader.onload = (e) => {
                     const img = new Image();
+
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
                         let width = img.width;
                         let height = img.height;
 
+                        // Calculate new dimensions (maintain aspect ratio)
                         if (width > maxWidth) {
                             height = (height * maxWidth) / width;
                             width = maxWidth;
@@ -459,15 +760,47 @@
 
                         canvas.width = width;
                         canvas.height = height;
+
                         const ctx = canvas.getContext('2d');
+
+                        // Enable image smoothing for better quality
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.imageSmoothingQuality = 'high';
+
+                        // Draw image
                         ctx.drawImage(img, 0, 0, width, height);
 
-                        resolve(canvas.toDataURL('image/jpeg', quality));
+                        // Convert to WebP (50% smaller than JPEG)
+                        canvas.toBlob(
+                            (blob) => {
+                                if (!blob) {
+                                    reject(new Error('Canvas toBlob failed'));
+                                    return;
+                                }
+
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                    const originalSize = (file.size / 1024 / 1024).toFixed(2);
+                                    const compressedSize = (blob.size / 1024 / 1024).toFixed(2);
+                                    const compressionRatio = ((1 - blob.size / file.size) * 100).toFixed(1);
+
+                                    console.log(`📸 Photo compressed: ${originalSize}MB → ${compressedSize}MB (${compressionRatio}% reduction)`);
+
+                                    resolve(reader.result);
+                                };
+                                reader.onerror = reject;
+                                reader.readAsDataURL(blob);
+                            },
+                            'image/webp',  // WebP format (much smaller)
+                            quality        // 0.7 quality (good balance)
+                        );
                     };
-                    img.onerror = reject;
+
+                    img.onerror = () => reject(new Error('Image load failed'));
                     img.src = e.target.result;
                 };
-                reader.onerror = reject;
+
+                reader.onerror = () => reject(new Error('FileReader failed'));
                 reader.readAsDataURL(file);
             });
         };
@@ -480,13 +813,71 @@
             setTimeout(() => toast.remove(), 3000);
         };
 
+        // ========================================
+        // RETRY MECHANISM - Exponential Backoff
+        // ========================================
+        const retryWithBackoff = async (fn, maxRetries = 3, operation = 'İşlem') => {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    return await fn();
+                } catch (error) {
+                    const isLastAttempt = i === maxRetries - 1;
+
+                    if (isLastAttempt) {
+                        console.error(`❌ ${operation} başarısız (${maxRetries} deneme):`, error);
+                        showToast(`❌ ${operation} başarısız. Lütfen internet bağlantınızı kontrol edin.`, 'error');
+                        throw error;
+                    }
+
+                    const delay = Math.pow(2, i) * 1000; // 1s, 2s, 4s
+                    console.warn(`⚠️ ${operation} başarısız, ${delay}ms sonra yeniden deneniyor... (${i + 1}/${maxRetries})`);
+                    showToast(`🔄 Yeniden deneniyor... (${i + 1}/${maxRetries})`, 'info');
+
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        };
+
+        // ========================================
+        // INPUT VALIDATION
+        // ========================================
         const validateReport = (report) => {
             const errors = [];
 
-            if (!report.customer?.trim()) errors.push('Müşteri adı gereklidir');
-            if (!report.project?.trim()) errors.push('Proje adı gereklidir');
-            if (!report.date) errors.push('Tarih seçilmelidir');
-            if (!report.description?.trim()) errors.push('Yapılan iş açıklaması gereklidir');
+            // Müşteri adı kontrolü
+            if (!report.customer?.trim()) {
+                errors.push('Müşteri adı gereklidir');
+            } else if (report.customer.trim().length < 2) {
+                errors.push('Müşteri adı en az 2 karakter olmalıdır');
+            }
+
+            // Proje adı kontrolü
+            if (!report.project?.trim()) {
+                errors.push('Proje adı gereklidir');
+            } else if (report.project.trim().length < 2) {
+                errors.push('Proje adı en az 2 karakter olmalıdır');
+            }
+
+            // Tarih kontrolü
+            if (!report.date) {
+                errors.push('Tarih seçilmelidir');
+            } else {
+                const reportDate = new Date(report.date);
+                const today = new Date();
+                const maxFutureDate = new Date();
+                maxFutureDate.setDate(today.getDate() + 30);
+
+                if (reportDate > maxFutureDate) {
+                    errors.push('Tarih 30 günden fazla ileri olamaz');
+                }
+            }
+
+            // Açıklama kontrolü
+            if (!report.description?.trim()) {
+                errors.push('Yapılan iş açıklaması gereklidir');
+            } else if (report.description.trim().length < 10) {
+                errors.push('Yapılan iş açıklaması en az 10 karakter olmalıdır');
+            }
 
             return { isValid: errors.length === 0, errors };
         };
@@ -538,6 +929,21 @@
             );
         });
 
+        // ========================================
+        // LOADING SKELETON COMPONENT
+        // ========================================
+        const LoadingSkeleton = () => (
+            <div className="animate-pulse space-y-4 p-4">
+                <div className="h-8 bg-gray-200 rounded-2xl w-3/4"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                <div className="space-y-3 mt-6">
+                    <div className="h-32 bg-gray-200 rounded-2xl"></div>
+                    <div className="h-32 bg-gray-200 rounded-2xl"></div>
+                    <div className="h-32 bg-gray-200 rounded-2xl"></div>
+                </div>
+            </div>
+        );
+
         const CorporateLogoBox = ({ customLogo }) => (
             <div className="flex flex-col items-center justify-center p-2 bg-white border-2 border-slate-800 rounded-md w-full h-full min-h-[60px]">
                 {customLogo ? (
@@ -554,6 +960,89 @@
             </div>
         );
 
+        // ========================================
+        // ERROR BOUNDARY - Crash'leri Yakala
+        // ========================================
+        class ErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = {
+                    hasError: false,
+                    error: null,
+                    errorInfo: null
+                };
+            }
+
+            static getDerivedStateFromError(error) {
+                return { hasError: true };
+            }
+
+            componentDidCatch(error, errorInfo) {
+                console.error('🔴 Error caught by boundary:', error, errorInfo);
+                this.setState({
+                    error: error,
+                    errorInfo: errorInfo
+                });
+            }
+
+            render() {
+                if (this.state.hasError) {
+                    return React.createElement('div', {
+                        className: 'min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4'
+                    },
+                        React.createElement('div', {
+                            className: 'bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full border-4 border-red-200'
+                        },
+                            React.createElement('div', { className: 'text-center mb-6' },
+                                React.createElement('div', {
+                                    className: 'text-6xl mb-4'
+                                }, '⚠️'),
+                                React.createElement('h1', {
+                                    className: 'text-2xl font-black text-red-600 mb-2'
+                                }, 'Bir Hata Oluştu'),
+                                React.createElement('p', {
+                                    className: 'text-sm text-gray-600'
+                                }, 'Uygulama beklenmeyen bir hatayla karşılaştı.')
+                            ),
+
+                            React.createElement('div', {
+                                className: 'bg-red-50 rounded-xl p-4 mb-6 text-xs font-mono text-red-800 max-h-32 overflow-auto'
+                            }, this.state.error && this.state.error.toString()),
+
+                            React.createElement('div', { className: 'space-y-3' },
+                                React.createElement('button', {
+                                    onClick: () => window.location.reload(),
+                                    className: 'w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl font-black text-sm hover:from-blue-700 hover:to-blue-800 transition-all transform hover:scale-105 shadow-lg'
+                                }, '🔄 Sayfayı Yenile'),
+
+                                React.createElement('button', {
+                                    onClick: () => {
+                                        localStorage.clear();
+                                        window.location.reload();
+                                    },
+                                    className: 'w-full bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-bold text-sm hover:bg-gray-200 transition-all'
+                                }, '🗑️ Önbelleği Temizle ve Yenile'),
+
+                                React.createElement('a', {
+                                    href: '/',
+                                    className: 'block w-full text-center bg-white border-2 border-gray-200 text-gray-700 px-6 py-3 rounded-xl font-bold text-sm hover:bg-gray-50 transition-all'
+                                }, '🏠 Ana Sayfaya Dön')
+                            ),
+
+                            React.createElement('p', {
+                                className: 'text-xs text-gray-400 text-center mt-6'
+                            }, 'Sorun devam ederse lütfen destek ekibiyle iletişime geçin.')
+                        )
+                    );
+                }
+
+                return this.props.children;
+            }
+        }
+
+        // ========================================
+        // MAIN APP COMPONENT
+        // ========================================
         const App = () => {
             const [view, setView] = useState('home');
             const [reports, setReports] = useState([]);
@@ -565,12 +1054,71 @@
             const [compressingPhotos, setCompressingPhotos] = useState(false);
             const [savedStaff, setSavedStaff] = useState([]);
             const [searchQuery, setSearchQuery] = useState('');
+            const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+            // ========================================
+            // NETWORK STATUS CHECK
+            // ========================================
+            useEffect(() => {
+                const handleOnline = () => {
+                    setIsOnline(true);
+                    showToast('✅ İnternet bağlantısı yeniden kuruldu', 'success');
+                    console.log('🌐 Online');
+                };
+
+                const handleOffline = () => {
+                    setIsOnline(false);
+                    showToast('⚠️ İnternet bağlantısı kesildi. Offline modda çalışıyorsunuz.', 'warning');
+                    console.log('📵 Offline');
+                };
+
+                window.addEventListener('online', handleOnline);
+                window.addEventListener('offline', handleOffline);
+
+                // Initial check
+                if (!navigator.onLine) {
+                    showToast('⚠️ İnternet bağlantısı yok. Offline modda başlatılıyor.', 'warning');
+                }
+
+                return () => {
+                    window.removeEventListener('online', handleOnline);
+                    window.removeEventListener('offline', handleOffline);
+                };
+            }, []);
+
+            // ========================================
+            // SERVICE WORKER REGISTRATION
+            // ========================================
+            useEffect(() => {
+                if ('serviceWorker' in navigator) {
+                    window.addEventListener('load', () => {
+                        navigator.serviceWorker.register('/service-worker.js')
+                            .then((registration) => {
+                                console.log('✅ SW registered:', registration.scope);
+                                showToast('📦 Offline mode aktif!', 'success');
+                            })
+                            .catch((error) => {
+                                console.error('❌ SW registration failed:', error);
+                                showToast('⚠️ Offline mode başlatılamadı', 'warning');
+                            });
+                    });
+                } else {
+                    console.log('❌ Service Worker not supported');
+                }
+            }, []);
 
             useEffect(() => {
                 (async () => {
                     try {
+                        // Initialize IndexedDB first (offline-first)
+                        await localDB.init();
+                        showToast('💾 Local storage hazır!', 'success');
+
+                        // Then initialize Firebase (online)
                         await storage.init();
                         showToast('🔥 Firebase bağlantısı kuruldu - Cloud sync aktif!', 'success');
+
+                        // Load data from Firebase
                         const [reportsData, logoData, staffData] = await Promise.all([
                             storage.getAllReports(),
                             storage.getLogo(),
@@ -579,9 +1127,28 @@
                         setReports(reportsData);
                         setLogo(logoData);
                         setSavedStaff(staffData);
+
+                        // Also save to IndexedDB for offline access
+                        for (const report of reportsData) {
+                            await localDB.saveReport(report);
+                        }
+                        console.log('✅ Synced', reportsData.length, 'reports to IndexedDB');
                     } catch (error) {
-                        console.error('Firebase init error:', error);
-                        showToast('⚠️ Firebase bağlantısı kurulamadı', 'error');
+                        console.error('Init error:', error);
+
+                        // If Firebase fails, try loading from IndexedDB
+                        if (localDB.db) {
+                            try {
+                                const localReports = await localDB.getAllReports();
+                                setReports(localReports);
+                                showToast('📵 Offline mode - ' + localReports.length + ' rapor yüklendi', 'warning');
+                            } catch (dbError) {
+                                console.error('IndexedDB load error:', dbError);
+                                showToast('⚠️ Veri yüklenemedi', 'error');
+                            }
+                        } else {
+                            showToast('⚠️ Firebase bağlantısı kurulamadı', 'error');
+                        }
                     } finally {
                         setLoading(false);
                     }
@@ -672,19 +1239,45 @@
 
                 try {
                     setSaving(true);
-                    const newReports = currentReport.id
-                        ? reports.map(r => r.id === currentReport.id ? currentReport : r)
-                        : [...reports, { ...currentReport, id: Date.now().toString() }];
+                    const reportToSave = currentReport.id
+                        ? currentReport
+                        : { ...currentReport, id: Date.now().toString() };
 
-                    await saveToLocal(newReports);
-                    showToast('Rapor başarıyla kaydedildi!', 'success');
+                    // 1. Optimistic UI update
+                    const newReports = currentReport.id
+                        ? reports.map(r => r.id === currentReport.id ? reportToSave : r)
+                        : [...reports, reportToSave];
+                    setReports(newReports);
+
+                    // 2. Save to IndexedDB (always - offline-first)
+                    await localDB.saveReport(reportToSave);
+                    console.log('✅ Saved to IndexedDB:', reportToSave.id);
+
+                    // 3. Try Firebase (if online) or queue (if offline)
+                    if (navigator.onLine) {
+                        try {
+                            await storage.saveReport(reportToSave);
+                            console.log('✅ Saved to Firebase:', reportToSave.id);
+                            showToast('✅ Rapor kaydedildi ve senkronize edildi!', 'success');
+                        } catch (error) {
+                            console.error('⚠️ Firebase save failed, queuing:', error);
+                            await localDB.addToSyncQueue('saveReport', reportToSave);
+                            showToast('✅ Rapor kaydedildi (offline queue)', 'warning');
+                        }
+                    } else {
+                        console.log('📵 Offline - adding to sync queue');
+                        await localDB.addToSyncQueue('saveReport', reportToSave);
+                        showToast('✅ Rapor kaydedildi (offline)', 'warning');
+                    }
+
                     setTimeout(() => {
                         setSaving(false);
                         setView('home');
                     }, 500);
                 } catch (error) {
                     setSaving(false);
-                    showToast('Kaydetme sırasında hata oluştu', 'error');
+                    console.error('❌ Save error:', error);
+                    showToast('❌ Kaydetme sırasında hata oluştu', 'error');
                 }
             };
 
@@ -816,185 +1409,191 @@
             // Views
             const Home = () => (
                 <div className="p-4 max-w-2xl mx-auto pb-48">
-                    <header className="mb-10 mt-6 flex justify-between items-start">
-                        <div className="px-2 border-l-8 border-blue-600 pl-5">
-                            <h1 className="text-4xl font-black text-slate-800 tracking-tighter italic uppercase leading-none">Gazioğlu</h1>
-                            <p className="text-blue-600 font-bold uppercase text-[10px] tracking-[0.2em] mt-2">Şantiye Rapor Yönetimi</p>
-                        </div>
-                        <div className="flex gap-2">
-                            <button onClick={() => setView('personnel')} className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-400 hover:text-blue-600 transition-colors" title="Personel Yönetimi">
-                                <Icon name="Users" />
-                            </button>
-                            <button onClick={() => setShowSettings(!showSettings)} className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-400 hover:text-blue-600 transition-colors" title="Ayarlar">
-                                <Icon name="Settings" />
-                            </button>
-                        </div>
-                    </header>
-
-
-                    {/* Search Box */}
-                    <div className="mb-6">
-                        <div className="relative">
-                            <Icon name="Search" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <input
-                                type="text"
-                                placeholder="Rapor ara (tarih, müşteri, proje)..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl border border-slate-200 text-sm font-medium outline-none focus:border-blue-400 transition-colors"
-                            />
-                            {searchQuery && (
-                                <button
-                                    onClick={() => setSearchQuery('')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-slate-100 rounded-full transition-colors"
-                                >
-                                    <Icon name="X" size={16} className="text-slate-400" />
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                    {showSettings && (
-                        <div className="mb-8 bg-white p-6 rounded-[2.5rem] border border-blue-100 space-y-5 animate-pulse-once">
-                            <div className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-white border rounded-xl overflow-hidden flex items-center justify-center">
-                                        {logo ? <img src={logo} className="w-full h-full object-contain" alt="Logo" /> : <Icon name="Image" className="text-slate-300" />}
-                                    </div>
-                                    <span className="text-[10px] font-black text-slate-600 uppercase">Logo Ayarı</span>
+                    {loading ? (
+                        <LoadingSkeleton />
+                    ) : (
+                        <>
+                            <header className="mb-10 mt-6 flex justify-between items-start">
+                                <div className="px-2 border-l-8 border-blue-600 pl-5">
+                                    <h1 className="text-4xl font-black text-slate-800 tracking-tighter italic uppercase leading-none">Gazioğlu</h1>
+                                    <p className="text-blue-600 font-bold uppercase text-[10px] tracking-[0.2em] mt-2">Şantiye Rapor Yönetimi</p>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button onClick={() => document.getElementById('logo-upload').click()} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-colors">Yükle</button>
-                                    {logo && (
-                                        <button onClick={async () => {
-                                            setLogo(null);
-                                            await storage.saveLogo(null);
-                                            showToast('✅ Logo kaldırıldı ve Firebase\'den silindi', 'success');
-                                        }} className="bg-red-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-red-600 transition-colors">Sil</button>
+                                    <button onClick={() => setView('personnel')} className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-400 hover:text-blue-600 transition-colors" title="Personel Yönetimi">
+                                        <Icon name="Users" />
+                                    </button>
+                                    <button onClick={() => setShowSettings(!showSettings)} className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-400 hover:text-blue-600 transition-colors" title="Ayarlar">
+                                        <Icon name="Settings" />
+                                    </button>
+                                </div>
+                            </header>
+
+
+                            {/* Search Box */}
+                            <div className="mb-6">
+                                <div className="relative">
+                                    <Icon name="Search" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Rapor ara (tarih, müşteri, proje)..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl border border-slate-200 text-sm font-medium outline-none focus:border-blue-400 transition-colors"
+                                    />
+                                    {searchQuery && (
+                                        <button
+                                            onClick={() => setSearchQuery('')}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-slate-100 rounded-full transition-colors"
+                                        >
+                                            <Icon name="X" size={16} className="text-slate-400" />
+                                        </button>
                                     )}
                                 </div>
                             </div>
-                            <div className="grid grid-cols-3 gap-3">
-                                <button onClick={handleExport} className="bg-slate-100 p-4 rounded-2xl text-xs font-bold text-slate-700 flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors">
-                                    <Icon name="Download" size={16} /> DIŞARI AKTAR
-                                </button>
-                                <button onClick={() => document.getElementById('file-import').click()} className="bg-slate-100 p-4 rounded-2xl text-xs font-bold text-slate-700 flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors">
-                                    <Icon name="Upload" size={16} /> İÇE AKTAR
-                                </button>
-                                <button onClick={handleManualSync} className="bg-blue-100 p-4 rounded-2xl text-xs font-bold text-blue-700 flex items-center justify-center gap-2 hover:bg-blue-200 transition-colors">
-                                    <Icon name="RefreshCw" size={16} /> SYNC
-                                </button>
-                            </div>
-
-                            {/* Firebase Cloud Info */}
-                            <div className="bg-orange-50 border-2 border-orange-200 rounded-2xl p-4">
-                                <div className="flex items-start gap-3">
-                                    <Icon name="Cloud" size={20} className="text-orange-600 flex-shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="text-xs font-black text-orange-900 uppercase mb-1">🔥 Firebase Cloud Aktif</p>
-                                        <p className="text-[10px] text-orange-800 leading-relaxed">
-                                            Raporlar bulutta saklanıyor - <span className="font-black">Tüm cihazlarda senkronize</span>!
-                                            Telefonda kaydedersen bilgisayarda görürsün.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Data Reset - Dangerous! */}
-                            <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4">
-                                <div className="flex items-start gap-3">
-                                    <Icon name="AlertTriangle" size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
-                                    <div className="flex-1">
-                                        <p className="text-xs font-black text-red-900 uppercase mb-1">⚠️ Tehlikeli Bölge</p>
-                                        <p className="text-[10px] text-red-800 leading-relaxed mb-3">
-                                            Tüm raporları, fotoğrafları ve ayarları <span className="font-black">kalıcı olarak sil</span>.
-                                            Bu işlem geri alınamaz!
-                                        </p>
-                                        <button
-                                            onClick={async () => {
-                                                if (confirm('⚠️ TÜM VERİLER SİLİNECEK!\n\nTüm raporlar, fotoğraflar, personel ve ayarlar kalıcı olarak silinecek.\n\nEmin misin?')) {
-                                                    if (confirm('Son uyarı! Bu işlem GERİ ALINAMAZ!\n\nDevam etmek istediğine emin misin?')) {
-                                                        try {
-                                                            await storage.resetAllData();
-                                                            setReports([]);
-                                                            setLogo(null);
-                                                            setSavedStaff([]);
-                                                            showToast('✅ Tüm veriler silindi', 'success');
-                                                        } catch (error) {
-                                                            showToast('❌ Silme işlemi başarısız', 'error');
-                                                        }
-                                                    }
-                                                }
-                                            }}
-                                            className="w-full bg-red-600 text-white px-4 py-3 rounded-xl text-xs font-black uppercase hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
-                                        >
-                                            <Icon name="Trash2" size={16} />
-                                            TÜM VERİLERİ SİL
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <input type="file" id="file-import" className="hidden" accept=".json" onChange={handleImport} />
-                            <input type="file" id="logo-upload" className="hidden" accept="image/*" onChange={handleLogoChange} />
-                        </div>
-                    )}
-
-                    <div className="space-y-4">
-                        {!reports || reports.length === 0 ? (
-                            <div className="text-center py-24 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
-                                <Icon name="FileText" size={64} className="mx-auto text-slate-100 mb-4" />
-                                <p className="text-slate-400 font-bold italic">Rapor listesi boş, Kerem Can.</p>
-                                <p className="text-slate-300 text-xs mt-2">Yeni bir rapor oluşturmak için aşağıdaki butona tıkla.</p>
-                            </div>
-                        ) : (
-                            (reports || [])
-                                .filter(report => {
-                                    if (!searchQuery.trim()) return true;
-                                    const q = searchQuery.toLowerCase();
-                                    return (
-                                        report.customer?.toLowerCase().includes(q) ||
-                                        report.project?.toLowerCase().includes(q) ||
-                                        new Date(report.date).toLocaleDateString('tr-TR').includes(q)
-                                    );
-                                })
-                                .sort((a, b) => new Date(b.date) - new Date(a.date))
-                                .map(report => (
-                                    <div key={report.id} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex items-center justify-between active:scale-[0.97] transition-all">
-                                        <div className="flex-1 cursor-pointer" onClick={() => { setCurrentReport(report); setView('preview'); }}>
-                                            <h3 className="font-black text-slate-800 text-xl leading-none">{new Date(report.date).toLocaleDateString('tr-TR')}</h3>
-                                            <p className="text-xs text-slate-400 font-bold uppercase mt-2 tracking-tighter">{report.project}</p>
-                                            {report.materials && report.materials.length > 0 && (
-                                                <p className="text-[10px] text-blue-600 font-black mt-1">
-                                                    {report.materials.reduce((sum, m) => sum + (m.totalWeight || 0), 0).toFixed(1)} KG
-                                                </p>
-                                            )}
+                            {showSettings && (
+                                <div className="mb-8 bg-white p-6 rounded-[2.5rem] border border-blue-100 space-y-5 animate-pulse-once">
+                                    <div className="bg-slate-50 p-4 rounded-2xl flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 bg-white border rounded-xl overflow-hidden flex items-center justify-center">
+                                                {logo ? <img src={logo} className="w-full h-full object-contain" alt="Logo" /> : <Icon name="Image" className="text-slate-300" />}
+                                            </div>
+                                            <span className="text-[10px] font-black text-slate-600 uppercase">Logo Ayarı</span>
                                         </div>
                                         <div className="flex gap-2">
-                                            <button onClick={() => { setCurrentReport(report); setView('edit'); }} className="p-4 text-blue-600 bg-blue-50 rounded-2xl hover:bg-blue-100 transition-colors" title="Düzenle"><Icon name="Pencil" /></button>
-                                            <button onClick={() => {
-                                                const newReport = {
-                                                    ...report,
-                                                    id: null,
-                                                    date: new Date().toISOString().split('T')[0]
-                                                };
-                                                setCurrentReport(newReport);
-                                                setView('edit');
-                                                showToast('Rapor kopyalandı, tarih bugüne ayarlandı', 'success');
-                                            }} className="p-4 text-green-600 bg-green-50 rounded-2xl hover:bg-green-100 transition-colors" title="Kopyala"><Icon name="Copy" /></button>
-                                            <button onClick={() => handleDelete(report.id)} className="p-4 text-red-500 bg-red-50 rounded-2xl hover:bg-red-100 transition-colors"><Icon name="Trash2" /></button>
+                                            <button onClick={() => document.getElementById('logo-upload').click()} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-blue-700 transition-colors">Yükle</button>
+                                            {logo && (
+                                                <button onClick={async () => {
+                                                    setLogo(null);
+                                                    await storage.saveLogo(null);
+                                                    showToast('✅ Logo kaldırıldı ve Firebase\'den silindi', 'success');
+                                                }} className="bg-red-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-red-600 transition-colors">Sil</button>
+                                            )}
                                         </div>
                                     </div>
-                                ))
-                        )}
-                    </div>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <button onClick={handleExport} className="bg-slate-100 p-4 rounded-2xl text-xs font-bold text-slate-700 flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors">
+                                            <Icon name="Download" size={16} /> DIŞARI AKTAR
+                                        </button>
+                                        <button onClick={() => document.getElementById('file-import').click()} className="bg-slate-100 p-4 rounded-2xl text-xs font-bold text-slate-700 flex items-center justify-center gap-2 hover:bg-slate-200 transition-colors">
+                                            <Icon name="Upload" size={16} /> İÇE AKTAR
+                                        </button>
+                                        <button onClick={handleManualSync} className="bg-blue-100 p-4 rounded-2xl text-xs font-bold text-blue-700 flex items-center justify-center gap-2 hover:bg-blue-200 transition-colors">
+                                            <Icon name="RefreshCw" size={16} /> SYNC
+                                        </button>
+                                    </div>
 
-                    <button
-                        onClick={() => { setCurrentReport({ ...INITIAL_REPORT_STATE, id: null }); setView('edit'); }}
-                        className="fixed bottom-10 right-6 left-6 flex items-center justify-center gap-3 bg-blue-600 text-white py-5 rounded-full shadow-2xl ring-4 ring-white z-50 pointer-events-auto hover:bg-blue-700 transition-colors active:scale-95"
-                    >
-                        <Icon name="Plus" size={24} />
-                        <span className="font-black text-sm uppercase tracking-widest">Yeni Rapor</span>
-                    </button>
+                                    {/* Firebase Cloud Info */}
+                                    <div className="bg-orange-50 border-2 border-orange-200 rounded-2xl p-4">
+                                        <div className="flex items-start gap-3">
+                                            <Icon name="Cloud" size={20} className="text-orange-600 flex-shrink-0 mt-0.5" />
+                                            <div>
+                                                <p className="text-xs font-black text-orange-900 uppercase mb-1">🔥 Firebase Cloud Aktif</p>
+                                                <p className="text-[10px] text-orange-800 leading-relaxed">
+                                                    Raporlar bulutta saklanıyor - <span className="font-black">Tüm cihazlarda senkronize</span>!
+                                                    Telefonda kaydedersen bilgisayarda görürsün.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Data Reset - Dangerous! */}
+                                    <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4">
+                                        <div className="flex items-start gap-3">
+                                            <Icon name="AlertTriangle" size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+                                            <div className="flex-1">
+                                                <p className="text-xs font-black text-red-900 uppercase mb-1">⚠️ Tehlikeli Bölge</p>
+                                                <p className="text-[10px] text-red-800 leading-relaxed mb-3">
+                                                    Tüm raporları, fotoğrafları ve ayarları <span className="font-black">kalıcı olarak sil</span>.
+                                                    Bu işlem geri alınamaz!
+                                                </p>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (confirm('⚠️ TÜM VERİLER SİLİNECEK!\n\nTüm raporlar, fotoğraflar, personel ve ayarlar kalıcı olarak silinecek.\n\nEmin misin?')) {
+                                                            if (confirm('Son uyarı! Bu işlem GERİ ALINAMAZ!\n\nDevam etmek istediğine emin misin?')) {
+                                                                try {
+                                                                    await storage.resetAllData();
+                                                                    setReports([]);
+                                                                    setLogo(null);
+                                                                    setSavedStaff([]);
+                                                                    showToast('✅ Tüm veriler silindi', 'success');
+                                                                } catch (error) {
+                                                                    showToast('❌ Silme işlemi başarısız', 'error');
+                                                                }
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="w-full bg-red-600 text-white px-4 py-3 rounded-xl text-xs font-black uppercase hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                                                >
+                                                    <Icon name="Trash2" size={16} />
+                                                    TÜM VERİLERİ SİL
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <input type="file" id="file-import" className="hidden" accept=".json" onChange={handleImport} />
+                                    <input type="file" id="logo-upload" className="hidden" accept="image/*" onChange={handleLogoChange} />
+                                </div>
+                            )}
+
+                            <div className="space-y-4">
+                                {!reports || reports.length === 0 ? (
+                                    <div className="text-center py-24 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
+                                        <Icon name="FileText" size={64} className="mx-auto text-slate-100 mb-4" />
+                                        <p className="text-slate-400 font-bold italic">Rapor listesi boş, Kerem Can.</p>
+                                        <p className="text-slate-300 text-xs mt-2">Yeni bir rapor oluşturmak için aşağıdaki butona tıkla.</p>
+                                    </div>
+                                ) : (
+                                    (reports || [])
+                                        .filter(report => {
+                                            if (!searchQuery.trim()) return true;
+                                            const q = searchQuery.toLowerCase();
+                                            return (
+                                                report.customer?.toLowerCase().includes(q) ||
+                                                report.project?.toLowerCase().includes(q) ||
+                                                new Date(report.date).toLocaleDateString('tr-TR').includes(q)
+                                            );
+                                        })
+                                        .sort((a, b) => new Date(b.date) - new Date(a.date))
+                                        .map(report => (
+                                            <div key={report.id} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex items-center justify-between active:scale-[0.97] transition-all">
+                                                <div className="flex-1 cursor-pointer" onClick={() => { setCurrentReport(report); setView('preview'); }}>
+                                                    <h3 className="font-black text-slate-800 text-xl leading-none">{new Date(report.date).toLocaleDateString('tr-TR')}</h3>
+                                                    <p className="text-xs text-slate-400 font-bold uppercase mt-2 tracking-tighter">{report.project}</p>
+                                                    {report.materials && report.materials.length > 0 && (
+                                                        <p className="text-[10px] text-blue-600 font-black mt-1">
+                                                            {report.materials.reduce((sum, m) => sum + (m.totalWeight || 0), 0).toFixed(1)} KG
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => { setCurrentReport(report); setView('edit'); }} className="p-4 text-blue-600 bg-blue-50 rounded-2xl hover:bg-blue-100 transition-colors" title="Düzenle"><Icon name="Pencil" /></button>
+                                                    <button onClick={() => {
+                                                        const newReport = {
+                                                            ...report,
+                                                            id: null,
+                                                            date: new Date().toISOString().split('T')[0]
+                                                        };
+                                                        setCurrentReport(newReport);
+                                                        setView('edit');
+                                                        showToast('Rapor kopyalandı, tarih bugüne ayarlandı', 'success');
+                                                    }} className="p-4 text-green-600 bg-green-50 rounded-2xl hover:bg-green-100 transition-colors" title="Kopyala"><Icon name="Copy" /></button>
+                                                    <button onClick={() => handleDelete(report.id)} className="p-4 text-red-500 bg-red-50 rounded-2xl hover:bg-red-100 transition-colors"><Icon name="Trash2" /></button>
+                                                </div>
+                                            </div>
+                                        ))
+                                )}
+                            </div>
+
+                            <button
+                                onClick={() => { setCurrentReport({ ...INITIAL_REPORT_STATE, id: null }); setView('edit'); }}
+                                className="fixed bottom-10 right-6 left-6 flex items-center justify-center gap-3 bg-blue-600 text-white py-5 rounded-full shadow-2xl ring-4 ring-white z-50 pointer-events-auto hover:bg-blue-700 transition-colors active:scale-95"
+                            >
+                                <Icon name="Plus" size={24} />
+                                <span className="font-black text-sm uppercase tracking-widest">Yeni Rapor</span>
+                            </button>
+                        </>
+                    )}
                 </div>
             );
 
@@ -1632,7 +2231,11 @@
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        root.render(
+            React.createElement(ErrorBoundary, null,
+                React.createElement(App, null)
+            )
+        );
     </script>
 </body>
 
