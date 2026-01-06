@@ -2,7 +2,7 @@
     "name": "Gazioğlu Şantiye Rapor Sistemi",
     "short_name": "Şantiye Rapor",
     "description": "Şantiye günlük rapor yönetim sistemi - Offline çalışabilir",
-    "start_url": "/index-test.html",
+    "start_url": "./",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#2563eb",
