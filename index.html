@@ -27,6 +27,9 @@
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
 
@@ -1352,6 +1355,84 @@
                     showToast('PDF oluşturuluyor...', 'success');
                 } catch (error) {
                     showToast('PDF oluşturma hatası', 'error');
+                }
+            };
+
+            // ========================================
+            // EXCEL EXPORT
+            // ========================================
+            const exportToExcel = (report) => {
+                try {
+                    // Workbook oluştur
+                    const wb = XLSX.utils.book_new();
+
+                    // 1. Genel Bilgiler sayfası
+                    const weatherLabel = WEATHER_OPTIONS.find(w => w.id === report.weather)?.label || report.weather;
+                    const generalData = [
+                        ['GAZİOĞLU ENDÜSTRİYEL'],
+                        ['ŞANTİYE RAPOR SİSTEMİ'],
+                        [],
+                        ['Müşteri:', report.customer],
+                        ['Proje:', report.project],
+                        ['Tarih:', new Date(report.date).toLocaleDateString('tr-TR')],
+                        ['Hava Durumu:', weatherLabel],
+                        [],
+                        ['YAPILAN İŞ:'],
+                        [report.description],
+                        [],
+                        ['NOTLAR:'],
+                        [report.notes || '-']
+                    ];
+                    const ws1 = XLSX.utils.aoa_to_sheet(generalData);
+
+                    // Sütun genişlikleri
+                    ws1['!cols'] = [{ wch: 20 }, { wch: 50 }];
+
+                    XLSX.utils.book_append_sheet(wb, ws1, 'Genel Bilgiler');
+
+                    // 2. Malzemeler sayfası
+                    if (report.materials && report.materials.length > 0) {
+                        const materialsData = [
+                            ['Malzeme Adı', 'Miktar', 'Birim'],
+                            ...report.materials.map(m => [m.name, m.quantity, m.unit])
+                        ];
+                        const ws2 = XLSX.utils.aoa_to_sheet(materialsData);
+                        ws2['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 15 }];
+                        XLSX.utils.book_append_sheet(wb, ws2, 'Malzemeler');
+                    }
+
+                    // 3. Personel sayfası
+                    if (report.staff && report.staff.length > 0) {
+                        const staffData = [
+                            ['Ad Soyad', 'Görev', 'Mesai Saati'],
+                            ...report.staff.map(s => [s.name, s.position, s.hours || '-'])
+                        ];
+                        const ws3 = XLSX.utils.aoa_to_sheet(staffData);
+                        ws3['!cols'] = [{ wch: 25 }, { wch: 20 }, { wch: 15 }];
+                        XLSX.utils.book_append_sheet(wb, ws3, 'Personel');
+                    }
+
+                    // 4. Fotoğraflar sayfası
+                    const photosData = [
+                        ['Fotoğraf Bilgileri'],
+                        [],
+                        ['Toplam Fotoğraf Sayısı:', report.photos?.length || 0],
+                        [],
+                        ['Not: Fotoğraflar PDF çıktısında görüntülenebilir.']
+                    ];
+                    const ws4 = XLSX.utils.aoa_to_sheet(photosData);
+                    ws4['!cols'] = [{ wch: 30 }, { wch: 20 }];
+                    XLSX.utils.book_append_sheet(wb, ws4, 'Fotoğraflar');
+
+                    // Excel dosyasını indir
+                    const projectName = report.project.replace(/[^a-zA-Z0-9ğüşıöçĞÜŞİÖÇ\s]/g, '').replace(/\s+/g, '_');
+                    const fileName = `Gazioglu_Rapor_${report.date}_${projectName}.xlsx`;
+                    XLSX.writeFile(wb, fileName);
+
+                    showToast('✅ Excel dosyası indiriliyor...', 'success');
+                } catch (error) {
+                    console.error('Excel export error:', error);
+                    showToast('❌ Excel oluşturma hatası', 'error');
                 }
             };
 
