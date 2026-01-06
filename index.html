@@ -1086,37 +1086,14 @@
                 };
             }, []);
 
-            // ========================================
-            // SERVICE WORKER REGISTRATION
-            // ========================================
-            useEffect(() => {
-                if ('serviceWorker' in navigator) {
-                    window.addEventListener('load', () => {
-                        navigator.serviceWorker.register('/service-worker.js')
-                            .then((registration) => {
-                                console.log('✅ SW registered:', registration.scope);
-                                showToast('📦 Offline mode aktif!', 'success');
-                            })
-                            .catch((error) => {
-                                console.error('❌ SW registration failed:', error);
-                                showToast('⚠️ Offline mode başlatılamadı', 'warning');
-                            });
-                    });
-                } else {
-                    console.log('❌ Service Worker not supported');
-                }
-            }, []);
+
 
             useEffect(() => {
                 (async () => {
                     try {
-                        // Initialize IndexedDB first (offline-first)
-                        await localDB.init();
-                        showToast('💾 Local storage hazır!', 'success');
-
-                        // Then initialize Firebase (online)
+                        // Initialize Firebase (online only)
                         await storage.init();
-                        showToast('🔥 Firebase bağlantısı kuruldu - Cloud sync aktif!', 'success');
+                        showToast('🔥 Firebase bağlantısı kuruldu!', 'success');
 
                         // Load data from Firebase
                         const [reportsData, logoData, staffData] = await Promise.all([
@@ -1128,27 +1105,10 @@
                         setLogo(logoData);
                         setSavedStaff(staffData);
 
-                        // Also save to IndexedDB for offline access
-                        for (const report of reportsData) {
-                            await localDB.saveReport(report);
-                        }
-                        console.log('✅ Synced', reportsData.length, 'reports to IndexedDB');
+                        console.log('✅ Loaded', reportsData.length, 'reports from Firebase');
                     } catch (error) {
                         console.error('Init error:', error);
-
-                        // If Firebase fails, try loading from IndexedDB
-                        if (localDB.db) {
-                            try {
-                                const localReports = await localDB.getAllReports();
-                                setReports(localReports);
-                                showToast('📵 Offline mode - ' + localReports.length + ' rapor yüklendi', 'warning');
-                            } catch (dbError) {
-                                console.error('IndexedDB load error:', dbError);
-                                showToast('⚠️ Veri yüklenemedi', 'error');
-                            }
-                        } else {
-                            showToast('⚠️ Firebase bağlantısı kurulamadı', 'error');
-                        }
+                        showToast('⚠️ Firebase bağlantısı kurulamadı', 'error');
                     } finally {
                         setLoading(false);
                     }
@@ -1243,32 +1203,21 @@
                         ? currentReport
                         : { ...currentReport, id: Date.now().toString() };
 
-                    // 1. Optimistic UI update
+                    // Optimistic UI update
                     const newReports = currentReport.id
                         ? reports.map(r => r.id === currentReport.id ? reportToSave : r)
                         : [...reports, reportToSave];
                     setReports(newReports);
 
-                    // 2. Save to IndexedDB (always - offline-first)
-                    await localDB.saveReport(reportToSave);
-                    console.log('✅ Saved to IndexedDB:', reportToSave.id);
+                    // Save to Firebase (online only)
+                    await retryWithBackoff(
+                        () => storage.saveReport(reportToSave),
+                        3,
+                        'Rapor kaydetme'
+                    );
 
-                    // 3. Try Firebase (if online) or queue (if offline)
-                    if (navigator.onLine) {
-                        try {
-                            await storage.saveReport(reportToSave);
-                            console.log('✅ Saved to Firebase:', reportToSave.id);
-                            showToast('✅ Rapor kaydedildi ve senkronize edildi!', 'success');
-                        } catch (error) {
-                            console.error('⚠️ Firebase save failed, queuing:', error);
-                            await localDB.addToSyncQueue('saveReport', reportToSave);
-                            showToast('✅ Rapor kaydedildi (offline queue)', 'warning');
-                        }
-                    } else {
-                        console.log('📵 Offline - adding to sync queue');
-                        await localDB.addToSyncQueue('saveReport', reportToSave);
-                        showToast('✅ Rapor kaydedildi (offline)', 'warning');
-                    }
+                    showToast('✅ Rapor kaydedildi!', 'success');
+                    autoBackup({ reports: newReports });
 
                     setTimeout(() => {
                         setSaving(false);
@@ -1276,8 +1225,8 @@
                     }, 500);
                 } catch (error) {
                     setSaving(false);
-                    console.error('❌ Save error:', error);
-                    showToast('❌ Kaydetme sırasında hata oluştu', 'error');
+                    console.error('Save error:', error);
+                    showToast('❌ Kaydetme başarısız. Lütfen tekrar deneyin.', 'error');
                 }
             };
 
