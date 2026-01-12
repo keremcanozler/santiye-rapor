@@ -1001,8 +1001,18 @@
                         type="text"
                         placeholder={placeholder}
                         value={value}
-                        onChange={(e) => onChange(e)}
-                        onFocus={() => setShowDropdown(true)}
+                        onChange={(e) => {
+                            console.log('📝 Input change:', e.target.value);
+                            onChange(e);
+                        }}
+                        onFocus={() => {
+                            console.log('🎯 Input focus - suggestions:', suggestions.length);
+                            setShowDropdown(true);
+                        }}
+                        onClick={() => {
+                            console.log('👆 Input click - suggestions:', suggestions.length);
+                            setShowDropdown(true);
+                        }}
                         className="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold outline-none border-2 border-transparent focus:border-blue-400 transition-colors"
                     />
                     {showDropdown && filteredSuggestions.length > 0 && (
