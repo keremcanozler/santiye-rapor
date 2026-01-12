@@ -949,7 +949,7 @@
         };
 
         // --- Reusable Components ---
-        const FormInput = React.memo(({ label, value, onChange, type = "text", placeholder, className = "" }) => {
+        const FormInput = React.memo(({ label, value, onChange, type = "text", placeholder, className = "", list }) => {
             const inputRef = React.useRef(null);
 
             return (
