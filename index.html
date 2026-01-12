@@ -968,6 +968,63 @@
             );
         });
 
+        // AutocompleteInput - Custom dropdown with suggestions
+        const AutocompleteInput = ({ placeholder, value, onChange, suggestions = [] }) => {
+            const [showDropdown, setShowDropdown] = React.useState(false);
+            const [filteredSuggestions, setFilteredSuggestions] = React.useState([]);
+            const dropdownRef = React.useRef(null);
+
+            React.useEffect(() => {
+                if (value) {
+                    const filtered = suggestions.filter(s =>
+                        s.toLowerCase().includes(value.toLowerCase())
+                    );
+                    setFilteredSuggestions(filtered);
+                } else {
+                    setFilteredSuggestions(suggestions);
+                }
+            }, [value, suggestions]);
+
+            React.useEffect(() => {
+                const handleClickOutside = (event) => {
+                    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                        setShowDropdown(false);
+                    }
+                };
+                document.addEventListener('mousedown', handleClickOutside);
+                return () => document.removeEventListener('mousedown', handleClickOutside);
+            }, []);
+
+            return (
+                <div className="relative" ref={dropdownRef}>
+                    <input
+                        type="text"
+                        placeholder={placeholder}
+                        value={value}
+                        onChange={(e) => onChange(e)}
+                        onFocus={() => setShowDropdown(true)}
+                        className="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold outline-none border-2 border-transparent focus:border-blue-400 transition-colors"
+                    />
+                    {showDropdown && filteredSuggestions.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border-2 border-blue-400 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                            {filteredSuggestions.map((suggestion, idx) => (
+                                <div
+                                    key={idx}
+                                    onClick={() => {
+                                        onChange({ target: { value: suggestion } });
+                                        setShowDropdown(false);
+                                    }}
+                                    className="px-4 py-3 hover:bg-blue-50 cursor-pointer text-sm font-bold transition-colors border-b border-slate-100 last:border-0"
+                                >
+                                    {suggestion}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
         const FormTextarea = React.memo(({ label, value, onChange, rows = 4, placeholder }) => {
             const textareaRef = React.useRef(null);
 
@@ -1890,14 +1947,14 @@
                                         </button>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
-                                        <FormInput list="projectNos" placeholder="Proje No" value={m.projectNo} onChange={e => {
+                                        <AutocompleteInput placeholder="Proje No" value={m.projectNo} suggestions={montajHistory.projectNos} onChange={e => {
                                             const mats = [...currentReport.materials]; mats[i].projectNo = e.target.value; setCurrentReport({ ...currentReport, materials: mats });
                                         }} />
-                                        <FormInput list="assemblyNos" placeholder="Montaj No" value={m.assemblyNo} onChange={e => {
+                                        <AutocompleteInput placeholder="Montaj No" value={m.assemblyNo} suggestions={montajHistory.assemblyNos} onChange={e => {
                                             const mats = [...currentReport.materials]; mats[i].assemblyNo = e.target.value; setCurrentReport({ ...currentReport, materials: mats });
                                         }} />
                                     </div>
-                                    <FormInput list="materials" placeholder="Malzeme" value={m.material} onChange={e => {
+                                    <AutocompleteInput placeholder="Malzeme" value={m.material} suggestions={montajHistory.materials} onChange={e => {
                                         const mats = [...currentReport.materials]; mats[i].material = e.target.value; setCurrentReport({ ...currentReport, materials: mats });
                                     }} />
                                     <div className="grid grid-cols-3 gap-2">
@@ -1923,23 +1980,6 @@
                                     <p className="font-bold">Montaj kaydı eklenmedi</p>
                                 </div>
                             )}
-
-                            {/* Datalists for autocomplete */}
-                            <datalist id="projectNos">
-                                {montajHistory.projectNos.map(no => (
-                                    <option key={no} value={no} />
-                                ))}
-                            </datalist>
-                            <datalist id="assemblyNos">
-                                {montajHistory.assemblyNos.map(no => (
-                                    <option key={no} value={no} />
-                                ))}
-                            </datalist>
-                            <datalist id="materials">
-                                {montajHistory.materials.map(mat => (
-                                    <option key={mat} value={mat} />
-                                ))}
-                            </datalist>
                         </section>
 
                         <section className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
