@@ -817,6 +817,59 @@
         };
 
         // ========================================
+        // MONTAJ GEÇMİŞİ - Autocomplete için
+        // ========================================
+        const getAllMontajData = (reports) => {
+            const projectNos = new Set();
+            const assemblyNos = new Set();
+            const materials = new Set();
+
+            reports.forEach(report => {
+                if (report.materials && Array.isArray(report.materials)) {
+                    report.materials.forEach(m => {
+                        if (m.projectNo && m.projectNo.trim()) projectNos.add(m.projectNo.trim());
+                        if (m.assemblyNo && m.assemblyNo.trim()) assemblyNos.add(m.assemblyNo.trim());
+                        if (m.material && m.material.trim()) materials.add(m.material.trim());
+                    });
+                }
+            });
+
+            return {
+                projectNos: Array.from(projectNos).sort(),
+                assemblyNos: Array.from(assemblyNos).sort(),
+                materials: Array.from(materials).sort()
+            };
+        };
+
+        const saveMontajHistory = (reports) => {
+            try {
+                const data = getAllMontajData(reports);
+                localStorage.setItem('montajHistory', JSON.stringify(data));
+                console.log('✅ Montaj geçmişi kaydedildi:', data);
+            } catch (error) {
+                console.error('❌ Montaj geçmişi kaydetme hatası:', error);
+            }
+        };
+
+        const loadMontajHistory = () => {
+            try {
+                const data = localStorage.getItem('montajHistory');
+                return data ? JSON.parse(data) : {
+                    projectNos: [],
+                    assemblyNos: [],
+                    materials: []
+                };
+            } catch (error) {
+                console.error('❌ Montaj geçmişi yükleme hatası:', error);
+                return {
+                    projectNos: [],
+                    assemblyNos: [],
+                    materials: []
+                };
+            }
+        };
+
+        // ========================================
         // RETRY MECHANISM - Exponential Backoff
         // ========================================
         const retryWithBackoff = async (fn, maxRetries = 3, operation = 'İşlem') => {
@@ -1058,6 +1111,11 @@
             const [savedStaff, setSavedStaff] = useState([]);
             const [searchQuery, setSearchQuery] = useState('');
             const [isOnline, setIsOnline] = useState(navigator.onLine);
+            const [montajHistory, setMontajHistory] = useState({
+                projectNos: [],
+                assemblyNos: [],
+                materials: []
+            });
 
             // ========================================
             // NETWORK STATUS CHECK
@@ -1117,6 +1175,22 @@
                     }
                 })();
             }, []);
+
+            // Load montaj history from localStorage and update when reports change
+            useEffect(() => {
+                const history = loadMontajHistory();
+                setMontajHistory(history);
+                console.log('📋 Montaj geçmişi yüklendi:', history);
+            }, []);
+
+            // Update montaj history when reports change
+            useEffect(() => {
+                if (reports.length > 0) {
+                    saveMontajHistory(reports);
+                    const history = getAllMontajData(reports);
+                    setMontajHistory(history);
+                }
+            }, [reports]);
 
             // Google Drive API initialization
             useEffect(() => {
@@ -1815,14 +1889,14 @@
                                         </button>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
-                                        <FormInput placeholder="Proje No" value={m.projectNo} onChange={e => {
+                                        <FormInput list="projectNos" placeholder="Proje No" value={m.projectNo} onChange={e => {
                                             const mats = [...currentReport.materials]; mats[i].projectNo = e.target.value; setCurrentReport({ ...currentReport, materials: mats });
                                         }} />
-                                        <FormInput placeholder="Montaj No" value={m.assemblyNo} onChange={e => {
+                                        <FormInput list="assemblyNos" placeholder="Montaj No" value={m.assemblyNo} onChange={e => {
                                             const mats = [...currentReport.materials]; mats[i].assemblyNo = e.target.value; setCurrentReport({ ...currentReport, materials: mats });
                                         }} />
                                     </div>
-                                    <FormInput placeholder="Malzeme" value={m.material} onChange={e => {
+                                    <FormInput list="materials" placeholder="Malzeme" value={m.material} onChange={e => {
                                         const mats = [...currentReport.materials]; mats[i].material = e.target.value; setCurrentReport({ ...currentReport, materials: mats });
                                     }} />
                                     <div className="grid grid-cols-3 gap-2">
@@ -1848,6 +1922,23 @@
                                     <p className="font-bold">Montaj kaydı eklenmedi</p>
                                 </div>
                             )}
+
+                            {/* Datalists for autocomplete */}
+                            <datalist id="projectNos">
+                                {montajHistory.projectNos.map(no => (
+                                    <option key={no} value={no} />
+                                ))}
+                            </datalist>
+                            <datalist id="assemblyNos">
+                                {montajHistory.assemblyNos.map(no => (
+                                    <option key={no} value={no} />
+                                ))}
+                            </datalist>
+                            <datalist id="materials">
+                                {montajHistory.materials.map(mat => (
+                                    <option key={mat} value={mat} />
+                                ))}
+                            </datalist>
                         </section>
 
                         <section className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
