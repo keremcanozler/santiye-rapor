@@ -1767,7 +1767,7 @@
                         <section className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 text-blue-600"><Icon name="Package" size={18} /> <span className="font-black text-xs uppercase">Montaj</span></div>
-                                <button onClick={() => setCurrentReport({ ...currentReport, materials: [...currentReport.materials, { projectNo: '', assemblyNo: '', material: '', quantity: 0, unitWeight: 0, totalWeight: 0 }] })} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"><Icon name="Plus" /></button>
+                                <button onClick={() => setCurrentReport({ ...currentReport, materials: [...(currentReport.materials || []), { projectNo: '', assemblyNo: '', material: '', quantity: 0, unitWeight: 0, totalWeight: 0 }] })} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"><Icon name="Plus" /></button>
                             </div>
                             {(currentReport.materials || []).map((m, i) => (
                                 <div
