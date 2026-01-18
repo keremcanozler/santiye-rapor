@@ -971,20 +971,19 @@
         // AutocompleteInput - Custom dropdown with suggestions
         const AutocompleteInput = ({ placeholder, value, onChange, suggestions = [] }) => {
             const [showDropdown, setShowDropdown] = React.useState(false);
-            const [filteredSuggestions, setFilteredSuggestions] = React.useState([]);
             const dropdownRef = React.useRef(null);
 
-            React.useEffect(() => {
-                if (value) {
-                    const filtered = suggestions.filter(s =>
-                        s.toLowerCase().includes(value.toLowerCase())
-                    );
-                    setFilteredSuggestions(filtered);
-                } else {
-                    setFilteredSuggestions(suggestions);
+            // Filter suggestions based on input value
+            const filteredSuggestions = React.useMemo(() => {
+                if (!value || value.trim() === '') {
+                    return suggestions;
                 }
+                return suggestions.filter(s =>
+                    s.toLowerCase().includes(value.toLowerCase())
+                );
             }, [value, suggestions]);
 
+            // Close dropdown when clicking outside
             React.useEffect(() => {
                 const handleClickOutside = (event) => {
                     if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -1001,21 +1000,12 @@
                         type="text"
                         placeholder={placeholder}
                         value={value}
-                        onChange={(e) => {
-                            console.log('📝 Input change:', e.target.value);
-                            onChange(e);
-                        }}
-                        onFocus={() => {
-                            console.log('🎯 Input focus - suggestions:', suggestions.length);
-                            setShowDropdown(true);
-                        }}
-                        onClick={() => {
-                            console.log('👆 Input click - suggestions:', suggestions.length);
-                            setShowDropdown(true);
-                        }}
+                        onChange={(e) => onChange(e)}
+                        onFocus={() => setShowDropdown(true)}
+                        onClick={() => setShowDropdown(true)}
                         className="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold outline-none border-2 border-transparent focus:border-blue-400 transition-colors"
                     />
-                    {showDropdown && filteredSuggestions.length > 0 && (
+                    {showDropdown && suggestions.length > 0 && (
                         <div className="absolute z-50 w-full mt-1 bg-white border-2 border-blue-400 rounded-xl shadow-lg max-h-48 overflow-y-auto">
                             {filteredSuggestions.map((suggestion, idx) => (
                                 <div
@@ -1995,7 +1985,29 @@
                         <section className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 text-blue-600"><Icon name="Users" size={18} /> <span className="font-black text-xs uppercase">Personel</span></div>
-                                <button onClick={() => setView('personnel')} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors" title="Kayıtlı Personel Ekle"><Icon name="Plus" /></button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => {
+                                            setCurrentReport({
+                                                ...currentReport,
+                                                staff: [...currentReport.staff, {
+                                                    name: '',
+                                                    task: '',
+                                                    startTime: '08:00',
+                                                    finishTime: '17:00',
+                                                    location: '',
+                                                    source: 'temporary'
+                                                }]
+                                            });
+                                            showToast('Geçici personel eklendi', 'success');
+                                        }}
+                                        className="p-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-colors"
+                                        title="Geçici Personel Ekle"
+                                    >
+                                        <Icon name="UserPlus" />
+                                    </button>
+                                    <button onClick={() => setView('personnel')} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors" title="Kayıtlı Personel Yönetimi"><Icon name="Settings" /></button>
+                                </div>
                             </div>
                             {savedStaff.length > 0 && (
                                 <div className="bg-blue-50 p-4 rounded-2xl space-y-2">
@@ -2018,7 +2030,8 @@
                                                                 task: staff.task,
                                                                 startTime: '08:00',
                                                                 finishTime: '17:00',
-                                                                location: ''
+                                                                location: '',
+                                                                source: 'saved'
                                                             }]
                                                         });
                                                         showToast(`${staff.name} eklendi`, 'success');
@@ -2038,6 +2051,16 @@
                             {(currentReport.staff || []).map((s, i) => (
                                 <div key={i} className="p-5 bg-slate-50 rounded-[1.5rem] border relative space-y-3">
                                     <button onClick={() => setCurrentReport({ ...currentReport, staff: currentReport.staff.filter((_, idx) => idx !== i) })} className="absolute -top-2 -right-2 bg-red-500 text-white p-2 rounded-full shadow-lg hover:bg-red-600 transition-colors"><Icon name="Trash2" size={12} /></button>
+                                    {s.source === 'temporary' && (
+                                        <div className="absolute -top-2 -left-2 bg-green-500 text-white px-3 py-1 rounded-full text-[10px] font-bold shadow-lg">
+                                            GEÇİCİ
+                                        </div>
+                                    )}
+                                    {s.source === 'saved' && (
+                                        <div className="absolute -top-2 -left-2 bg-blue-500 text-white px-3 py-1 rounded-full text-[10px] font-bold shadow-lg">
+                                            KAYITLI
+                                        </div>
+                                    )}
                                     <FormInput placeholder="Ad Soyad" value={s.name} onChange={e => {
                                         const stf = [...currentReport.staff]; stf[i].name = e.target.value; setCurrentReport({ ...currentReport, staff: stf });
                                     }} />
@@ -2116,7 +2139,8 @@
                             task: staff.task,
                             startTime: '08:00',
                             finishTime: '17:00',
-                            location: ''
+                            location: '',
+                            source: 'saved'
                         }]
                     });
                     showToast(`${staff.name} rapora eklendi`, 'success');
