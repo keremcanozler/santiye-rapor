@@ -1522,7 +1522,7 @@
             // ========================================
             const [monthDownloading, setMonthDownloading] = useState(null); // ay key'i
 
-            const buildReportHTML = (report, logoData) => {
+            const buildReportHTML = (report, logoData, addPageBreak = false) => {
                 const weatherOptions = [
                     { id: 'gunesli', label: 'Güneşli' }, { id: 'bulutlu', label: 'Bulutlu' },
                     { id: 'yagmurlu', label: 'Yağmurlu' }, { id: 'sisli', label: 'Sisli' },
@@ -1572,30 +1572,43 @@
                     : `<div style="grid-column:1/-1;text-align:center;padding:20px;font-size:8px;color:#ccc;">FOTOĞRAF EKLENMEDİ</div>`;
 
                 return `
-                <div style="background:white;width:210mm;min-height:297mm;padding:10mm;box-sizing:border-box;font-family:Arial,sans-serif;page-break-after:always;">
-                    <div style="border:1.5px solid black;height:100%;display:flex;flex-direction:column;">
-                        <div style="display:grid;grid-template-columns:2fr 1fr;border-bottom:1.5px solid black;background:#f8fafc;">
-                            <div style="padding:16px;border-right:1.5px solid black;display:flex;align-items:center;justify-content:center;text-align:center;">
-                                <h1 style="font-size:16px;font-weight:900;text-transform:uppercase;letter-spacing:-0.5px;font-style:italic;margin:0;">GÜNLÜK İLERLEME RAPORU / DAILY PROGRESS REPORT</h1>
-                            </div>
-                            <div style="padding:12px;display:flex;align-items:center;justify-content:center;">${logoHTML}</div>
-                        </div>
-                        <div style="display:grid;grid-template-columns:1fr 2fr 1fr 2fr;border-bottom:1px solid black;">
-                            <div style="padding:6px;border-right:1px solid black;font-size:8px;font-weight:900;background:#f1f5f9;">MÜŞTERİ:</div>
-                            <div style="padding:6px;border-right:1px solid black;font-size:8px;font-weight:700;text-transform:uppercase;">${report.customer || ''}</div>
-                            <div style="padding:6px;border-right:1px solid black;font-size:8px;font-weight:900;background:#f1f5f9;">TARİH:</div>
-                            <div style="padding:6px;font-size:8px;font-weight:900;">${dateStr}</div>
-                        </div>
-                        <div style="display:grid;grid-template-columns:1fr 5fr;border-bottom:1px solid black;">
-                            <div style="padding:6px;border-right:1px solid black;font-size:8px;font-weight:900;background:#f1f5f9;">PROJE:</div>
-                            <div style="padding:6px;font-size:8px;font-weight:700;text-transform:uppercase;">${report.project || ''}</div>
-                        </div>
+                <div style="background:white;width:210mm;min-height:297mm;padding:10mm;box-sizing:border-box;font-family:Arial,sans-serif;${addPageBreak ? 'page-break-after:always;' : ''}">
+                    <div style="border:1.5px solid black;">
+                        <table style="width:100%;border-collapse:collapse;border-bottom:1.5px solid black;background:#f8fafc;">
+                            <tr>
+                                <td style="width:67%;padding:16px;border-right:1.5px solid black;text-align:center;vertical-align:middle;">
+                                    <h1 style="font-size:15px;font-weight:900;text-transform:uppercase;letter-spacing:-0.5px;font-style:italic;margin:0;">GÜNLÜK İLERLEME RAPORU / DAILY PROGRESS REPORT</h1>
+                                </td>
+                                <td style="width:33%;padding:12px;text-align:center;vertical-align:middle;">${logoHTML}</td>
+                            </tr>
+                        </table>
+                        <table style="width:100%;border-collapse:collapse;border-bottom:1px solid black;">
+                            <tr>
+                                <td style="width:13%;padding:6px;border-right:1px solid black;font-size:8px;font-weight:900;background:#f1f5f9;">MÜŞTERİ:</td>
+                                <td style="width:37%;padding:6px;border-right:1px solid black;font-size:8px;font-weight:700;text-transform:uppercase;">${report.customer || ''}</td>
+                                <td style="width:13%;padding:6px;border-right:1px solid black;font-size:8px;font-weight:900;background:#f1f5f9;">TARİH:</td>
+                                <td style="width:37%;padding:6px;font-size:8px;font-weight:900;">${dateStr}</td>
+                            </tr>
+                        </table>
+                        <table style="width:100%;border-collapse:collapse;border-bottom:1px solid black;">
+                            <tr>
+                                <td style="width:13%;padding:6px;border-right:1px solid black;font-size:8px;font-weight:900;background:#f1f5f9;">PROJE:</td>
+                                <td style="padding:6px;font-size:8px;font-weight:700;text-transform:uppercase;">${report.project || ''}</td>
+                            </tr>
+                        </table>
                         <div style="padding:4px;font-size:8px;font-weight:900;background:#e2e8f0;border-bottom:1px solid black;text-align:center;text-transform:uppercase;font-style:italic;">HAVA DURUMU</div>
                         <table style="width:100%;border-collapse:collapse;border-bottom:1px solid black;"><tr>${weatherCells}</tr></table>
                         <div style="padding:4px;font-size:8px;font-weight:900;background:#e2e8f0;border-bottom:1px solid black;text-align:center;text-transform:uppercase;font-style:italic;">YAPILAN İŞİN AÇIKLANMASI</div>
                         <div style="padding:12px;min-height:100px;font-size:10px;font-weight:500;white-space:pre-wrap;border-bottom:1px solid black;font-style:italic;">${report.description || 'Açıklama girilmedi.'}</div>
                         <div style="padding:4px;font-size:8px;font-weight:900;background:#e2e8f0;border-bottom:1px solid black;text-align:center;text-transform:uppercase;font-style:italic;">SAHA FOTOĞRAFLARI</div>
-                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:8px;border-bottom:1px solid black;">${photoHTML}</div>
+                        <table style="width:100%;border-collapse:collapse;border-bottom:1px solid black;">
+                            <tr>
+                                ${(report.photos || []).length > 0
+                        ? (report.photos || []).map(p => `<td style="width:33%;padding:4px;"><img src="${p}" style="width:100%;aspect-ratio:1;object-fit:cover;" /></td>`).join('')
+                        : `<td style="text-align:center;padding:20px;font-size:8px;color:#ccc;">FOTOĞRAF EKLENMEDİ</td>`
+                    }
+                            </tr>
+                        </table>
                         <div style="padding:4px;font-size:8px;font-weight:900;background:#e2e8f0;border-bottom:1px solid black;text-align:center;text-transform:uppercase;font-style:italic;">MONTAJ DETAYLARI</div>
                         <table style="width:100%;border-collapse:collapse;">
                             <tr style="background:#f1f5f9;font-size:7px;font-weight:900;text-align:center;text-transform:uppercase;">
@@ -1625,19 +1638,22 @@
                         </table>
                         <div style="padding:4px;font-size:8px;font-weight:900;background:#e2e8f0;border-bottom:1px solid black;text-align:center;text-transform:uppercase;font-style:italic;">NOTLAR</div>
                         <div style="padding:10px;min-height:50px;font-size:9px;font-weight:500;white-space:pre-wrap;border-bottom:1px solid black;font-style:italic;">${report.notes || '-'}</div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;min-height:100px;font-size:8px;flex-grow:1;">
-                            <div style="padding:12px;border-right:1px solid black;display:flex;flex-direction:column;justify-content:space-between;font-style:italic;">
-                                <span style="font-weight:900;text-decoration:underline;text-transform:uppercase;letter-spacing:1px;font-size:7px;">Hazırlayan / Prepared:</span>
-                                <div style="text-align:center;margin-top:20px;">
-                                    <p style="font-weight:900;font-size:9px;text-transform:uppercase;font-style:italic;margin:0;">Kerem Can Özler</p>
-                                    <p style="font-size:6px;font-weight:700;font-style:italic;opacity:0.6;margin:3px 0 0;text-transform:uppercase;">Saha Mimarı / Site Architect</p>
-                                </div>
-                            </div>
-                            <div style="padding:12px;border-right:1px solid black;font-weight:900;text-decoration:underline;text-transform:uppercase;letter-spacing:1px;font-size:7px;font-style:italic;">Kontrol / Checked:</div>
-                            <div style="padding:12px;font-weight:900;text-decoration:underline;text-transform:uppercase;letter-spacing:1px;font-size:7px;font-style:italic;">Onay / Approved:</div>
-                        </div>
+                        <table style="width:100%;border-collapse:collapse;min-height:100px;">
+                            <tr>
+                                <td style="width:33%;padding:12px;border-right:1px solid black;font-size:7px;font-style:italic;vertical-align:top;">
+                                    <div style="font-weight:900;text-decoration:underline;text-transform:uppercase;letter-spacing:1px;">Hazırlayan / Prepared:</div>
+                                    <div style="text-align:center;margin-top:30px;">
+                                        <p style="font-weight:900;font-size:9px;text-transform:uppercase;font-style:italic;margin:0;">Kerem Can Özler</p>
+                                        <p style="font-size:6px;font-weight:700;font-style:italic;opacity:0.6;margin:3px 0 0;text-transform:uppercase;">Saha Mimarı / Site Architect</p>
+                                    </div>
+                                </td>
+                                <td style="width:33%;padding:12px;border-right:1px solid black;font-size:7px;font-weight:900;text-decoration:underline;text-transform:uppercase;letter-spacing:1px;font-style:italic;vertical-align:top;">Kontrol / Checked:</td>
+                                <td style="width:33%;padding:12px;font-size:7px;font-weight:900;text-decoration:underline;text-transform:uppercase;letter-spacing:1px;font-style:italic;vertical-align:top;">Onay / Approved:</td>
+                            </tr>
+                        </table>
                     </div>
                 </div>`;
+
             };
 
             const generateMonthPDF = async (monthKey, monthLabel, monthReports) => {
@@ -1647,33 +1663,48 @@
 
                 try {
                     // Tüm raporları tam veriyle (fotoğraf dahil) Firebase'den çek
-                    const fullReports = await Promise.all(
-                        monthReports
-                            .sort((a, b) => new Date(a.date) - new Date(b.date)) // Eskiden yeniye
-                            .map(r => storage.getReportById(r.id))
-                    );
+                    const sorted = [...monthReports].sort((a, b) => new Date(a.date) - new Date(b.date));
+                    const fullReports = (await Promise.all(sorted.map(r => storage.getReportById(r.id)))).filter(Boolean);
 
-                    showToast(`📄 PDF oluşturuluyor...`, 'info');
+                    showToast(`📄 PDF oluşturuluyor... (${fullReports.length} rapor)`, 'info');
 
-                    // Tüm raporların HTML'ini birleştir
-                    const combinedHTML = fullReports
-                        .filter(Boolean)
-                        .map(r => buildReportHTML(r, logo))
-                        .join('');
+                    // Son raporda page-break-after olmamalı (boş sayfa oluşturur)
+                    const combinedHTML = fullReports.map((r, i) =>
+                        buildReportHTML(r, logo, i < fullReports.length - 1)
+                    ).join('');
 
+                    // html2canvas için container EKRANDA (ama görünmez) olmalı
                     const container = document.createElement('div');
                     container.innerHTML = combinedHTML;
-                    container.style.cssText = 'position:fixed;top:-99999px;left:-99999px;width:210mm;';
+                    container.style.cssText = [
+                        'position:fixed',
+                        'top:0',
+                        'left:0',
+                        'width:210mm',
+                        'opacity:0',
+                        'pointer-events:none',
+                        'z-index:-9999',
+                        'overflow:hidden'
+                    ].join(';');
                     document.body.appendChild(container);
+
+                    // Resimlerin yüklenmesini bekle
+                    await new Promise(resolve => setTimeout(resolve, 800));
 
                     const monthSlug = monthLabel.replace(/\s+/g, '_');
                     const opt = {
                         margin: 0,
                         filename: `Gazioglu_${monthSlug}_Raporlar.pdf`,
-                        image: { type: 'jpeg', quality: 0.92 },
-                        html2canvas: { scale: 2, useCORS: true, allowTaint: true },
+                        image: { type: 'jpeg', quality: 0.90 },
+                        html2canvas: {
+                            scale: 2,
+                            useCORS: true,
+                            allowTaint: true,
+                            logging: false,
+                            windowWidth: 794 // 210mm @ 96dpi
+                        },
                         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                        pagebreak: { mode: ['css', 'legacy'] }
+                        pagebreak: { mode: ['css', 'legacy'], avoid: 'img' }
                     };
 
                     await html2pdf().set(opt).from(container).save();
@@ -1681,7 +1712,7 @@
                     showToast(`✅ ${monthLabel} - ${fullReports.length} rapor PDF'e aktarıldı!`, 'success');
                 } catch (error) {
                     console.error('Monthly PDF error:', error);
-                    showToast('❌ PDF oluşturma hatası', 'error');
+                    showToast('❌ PDF oluşturma hatası: ' + error.message, 'error');
                 } finally {
                     setMonthDownloading(null);
                 }
