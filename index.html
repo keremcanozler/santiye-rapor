@@ -1518,6 +1518,176 @@
             };
 
             // ========================================
+            // AYLIK TOPLU PDF
+            // ========================================
+            const [monthDownloading, setMonthDownloading] = useState(null); // ay key'i
+
+            const buildReportHTML = (report, logoData) => {
+                const weatherOptions = [
+                    { id: 'gunesli', label: 'Güneşli' }, { id: 'bulutlu', label: 'Bulutlu' },
+                    { id: 'yagmurlu', label: 'Yağmurlu' }, { id: 'sisli', label: 'Sisli' },
+                    { id: 'ruzgarli', label: 'Rüzgarlı' }, { id: 'firtina', label: 'Fırtına' },
+                    { id: 'karli', label: 'Karlı' }, { id: 'dolu', label: 'Dolu' },
+                ];
+                const dateStr = new Date(report.date).toLocaleDateString('tr-TR');
+                const totalW = (report.materials || []).reduce((s, m) => s + (m.totalWeight || 0), 0).toLocaleString('tr-TR');
+                const logoHTML = logoData
+                    ? `<img src="${logoData}" style="max-width:100%;max-height:48px;object-fit:contain;" />`
+                    : `<div style="text-align:center;font-family:sans-serif;">
+                        <div style="font-weight:900;font-size:12px;letter-spacing:-0.5px;text-transform:uppercase;">GAZİOĞLU</div>
+                        <div style="font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#666;">Endüstriyel</div>
+                       </div>`;
+
+                const weatherCells = weatherOptions.map(opt => `
+                    <td style="padding:4px 6px;border-right:1px solid black;font-size:7px;font-weight:700;text-transform:uppercase;white-space:nowrap;">
+                        <span style="display:inline-block;width:10px;height:10px;border:1px solid black;background:${report.weather === opt.id ? 'black' : 'white'};color:white;font-size:8px;line-height:10px;text-align:center;margin-right:3px;">${report.weather === opt.id ? '✓' : ''}</span>${opt.label}
+                    </td>`).join('');
+
+                const materialRows = (report.materials || []).length > 0
+                    ? (report.materials || []).map(m => `
+                        <tr style="font-size:7px;text-align:center;font-weight:700;">
+                            <td style="padding:3px;border-bottom:1px solid black;border-right:1px solid black;">${m.projectNo || ''}</td>
+                            <td style="padding:3px;border-bottom:1px solid black;border-right:1px solid black;">${m.assemblyNo || ''}</td>
+                            <td style="padding:3px;border-bottom:1px solid black;border-right:1px solid black;text-align:left;">${(m.material || '').toUpperCase()}</td>
+                            <td style="padding:3px;border-bottom:1px solid black;border-right:1px solid black;">${m.quantity || ''}</td>
+                            <td style="padding:3px;border-bottom:1px solid black;border-right:1px solid black;">${m.unitWeight || ''}</td>
+                            <td style="padding:3px;border-bottom:1px solid black;font-weight:900;">${(m.totalWeight || 0).toFixed(1)}</td>
+                        </tr>`).join('')
+                    : `<tr><td colspan="6" style="padding:12px;text-align:center;font-size:8px;color:#ccc;border-bottom:1px solid black;">MONTAJ KAYDI YOK</td></tr>`;
+
+                const staffRows = (report.staff || []).length > 0
+                    ? (report.staff || []).map(s => `
+                        <tr style="font-size:7px;text-align:center;font-weight:700;font-style:italic;text-transform:uppercase;">
+                            <td style="padding:3px;border-bottom:1px solid black;border-right:1px solid black;text-align:left;">${s.name || ''}</td>
+                            <td style="padding:3px;border-bottom:1px solid black;border-right:1px solid black;">${s.task || ''}</td>
+                            <td style="padding:3px;border-bottom:1px solid black;border-right:1px solid black;font-weight:900;">${s.startTime || ''}</td>
+                            <td style="padding:3px;border-bottom:1px solid black;border-right:1px solid black;font-weight:900;">${s.finishTime || ''}</td>
+                            <td style="padding:3px;border-bottom:1px solid black;">${s.location || ''}</td>
+                        </tr>`).join('')
+                    : `<tr><td colspan="5" style="padding:12px;text-align:center;font-size:8px;color:#ccc;border-bottom:1px solid black;">PERSONEL KAYDI YOK</td></tr>`;
+
+                const photoHTML = (report.photos || []).length > 0
+                    ? (report.photos || []).map(p => `<img src="${p}" style="width:100%;height:100%;object-fit:cover;" />`).map((img, i) =>
+                        `<div style="border:1px solid #ddd;overflow:hidden;aspect-ratio:1;">${img}</div>`).join('')
+                    : `<div style="grid-column:1/-1;text-align:center;padding:20px;font-size:8px;color:#ccc;">FOTOĞRAF EKLENMEDİ</div>`;
+
+                return `
+                <div style="background:white;width:210mm;min-height:297mm;padding:10mm;box-sizing:border-box;font-family:Arial,sans-serif;page-break-after:always;">
+                    <div style="border:1.5px solid black;height:100%;display:flex;flex-direction:column;">
+                        <div style="display:grid;grid-template-columns:2fr 1fr;border-bottom:1.5px solid black;background:#f8fafc;">
+                            <div style="padding:16px;border-right:1.5px solid black;display:flex;align-items:center;justify-content:center;text-align:center;">
+                                <h1 style="font-size:16px;font-weight:900;text-transform:uppercase;letter-spacing:-0.5px;font-style:italic;margin:0;">GÜNLÜK İLERLEME RAPORU / DAILY PROGRESS REPORT</h1>
+                            </div>
+                            <div style="padding:12px;display:flex;align-items:center;justify-content:center;">${logoHTML}</div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 2fr 1fr 2fr;border-bottom:1px solid black;">
+                            <div style="padding:6px;border-right:1px solid black;font-size:8px;font-weight:900;background:#f1f5f9;">MÜŞTERİ:</div>
+                            <div style="padding:6px;border-right:1px solid black;font-size:8px;font-weight:700;text-transform:uppercase;">${report.customer || ''}</div>
+                            <div style="padding:6px;border-right:1px solid black;font-size:8px;font-weight:900;background:#f1f5f9;">TARİH:</div>
+                            <div style="padding:6px;font-size:8px;font-weight:900;">${dateStr}</div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 5fr;border-bottom:1px solid black;">
+                            <div style="padding:6px;border-right:1px solid black;font-size:8px;font-weight:900;background:#f1f5f9;">PROJE:</div>
+                            <div style="padding:6px;font-size:8px;font-weight:700;text-transform:uppercase;">${report.project || ''}</div>
+                        </div>
+                        <div style="padding:4px;font-size:8px;font-weight:900;background:#e2e8f0;border-bottom:1px solid black;text-align:center;text-transform:uppercase;font-style:italic;">HAVA DURUMU</div>
+                        <table style="width:100%;border-collapse:collapse;border-bottom:1px solid black;"><tr>${weatherCells}</tr></table>
+                        <div style="padding:4px;font-size:8px;font-weight:900;background:#e2e8f0;border-bottom:1px solid black;text-align:center;text-transform:uppercase;font-style:italic;">YAPILAN İŞİN AÇIKLANMASI</div>
+                        <div style="padding:12px;min-height:100px;font-size:10px;font-weight:500;white-space:pre-wrap;border-bottom:1px solid black;font-style:italic;">${report.description || 'Açıklama girilmedi.'}</div>
+                        <div style="padding:4px;font-size:8px;font-weight:900;background:#e2e8f0;border-bottom:1px solid black;text-align:center;text-transform:uppercase;font-style:italic;">SAHA FOTOĞRAFLARI</div>
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:8px;border-bottom:1px solid black;">${photoHTML}</div>
+                        <div style="padding:4px;font-size:8px;font-weight:900;background:#e2e8f0;border-bottom:1px solid black;text-align:center;text-transform:uppercase;font-style:italic;">MONTAJ DETAYLARI</div>
+                        <table style="width:100%;border-collapse:collapse;">
+                            <tr style="background:#f1f5f9;font-size:7px;font-weight:900;text-align:center;text-transform:uppercase;">
+                                <td style="padding:4px;border-bottom:1px solid black;border-right:1px solid black;">PROJE NO</td>
+                                <td style="padding:4px;border-bottom:1px solid black;border-right:1px solid black;">MONTAJ NO</td>
+                                <td style="padding:4px;border-bottom:1px solid black;border-right:1px solid black;">MALZEME</td>
+                                <td style="padding:4px;border-bottom:1px solid black;border-right:1px solid black;">ADET</td>
+                                <td style="padding:4px;border-bottom:1px solid black;border-right:1px solid black;">BİRİM</td>
+                                <td style="padding:4px;border-bottom:1px solid black;">TOPLAM</td>
+                            </tr>
+                            ${materialRows}
+                            <tr style="background:#f8fafc;font-size:9px;font-weight:900;font-style:italic;">
+                                <td colspan="5" style="padding:6px;text-align:right;padding-right:20px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid black;">TOPLAM AĞIRLIK (Kg) :</td>
+                                <td style="padding:6px;text-align:center;color:#1e40af;border-bottom:1px solid black;">${totalW}</td>
+                            </tr>
+                        </table>
+                        <div style="padding:4px;font-size:8px;font-weight:900;background:#e2e8f0;border-bottom:1px solid black;text-align:center;text-transform:uppercase;font-style:italic;">PERSONEL DETAYI</div>
+                        <table style="width:100%;border-collapse:collapse;">
+                            <tr style="background:#f1f5f9;font-size:7px;font-weight:900;text-align:center;text-transform:uppercase;">
+                                <td style="padding:4px;border-bottom:1px solid black;border-right:1px solid black;">AD SOYAD</td>
+                                <td style="padding:4px;border-bottom:1px solid black;border-right:1px solid black;">GÖREV</td>
+                                <td style="padding:4px;border-bottom:1px solid black;border-right:1px solid black;">GİRİŞ</td>
+                                <td style="padding:4px;border-bottom:1px solid black;border-right:1px solid black;">ÇIKIŞ</td>
+                                <td style="padding:4px;border-bottom:1px solid black;">MEVKİ</td>
+                            </tr>
+                            ${staffRows}
+                        </table>
+                        <div style="padding:4px;font-size:8px;font-weight:900;background:#e2e8f0;border-bottom:1px solid black;text-align:center;text-transform:uppercase;font-style:italic;">NOTLAR</div>
+                        <div style="padding:10px;min-height:50px;font-size:9px;font-weight:500;white-space:pre-wrap;border-bottom:1px solid black;font-style:italic;">${report.notes || '-'}</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;min-height:100px;font-size:8px;flex-grow:1;">
+                            <div style="padding:12px;border-right:1px solid black;display:flex;flex-direction:column;justify-content:space-between;font-style:italic;">
+                                <span style="font-weight:900;text-decoration:underline;text-transform:uppercase;letter-spacing:1px;font-size:7px;">Hazırlayan / Prepared:</span>
+                                <div style="text-align:center;margin-top:20px;">
+                                    <p style="font-weight:900;font-size:9px;text-transform:uppercase;font-style:italic;margin:0;">Kerem Can Özler</p>
+                                    <p style="font-size:6px;font-weight:700;font-style:italic;opacity:0.6;margin:3px 0 0;text-transform:uppercase;">Saha Mimarı / Site Architect</p>
+                                </div>
+                            </div>
+                            <div style="padding:12px;border-right:1px solid black;font-weight:900;text-decoration:underline;text-transform:uppercase;letter-spacing:1px;font-size:7px;font-style:italic;">Kontrol / Checked:</div>
+                            <div style="padding:12px;font-weight:900;text-decoration:underline;text-transform:uppercase;letter-spacing:1px;font-size:7px;font-style:italic;">Onay / Approved:</div>
+                        </div>
+                    </div>
+                </div>`;
+            };
+
+            const generateMonthPDF = async (monthKey, monthLabel, monthReports) => {
+                if (monthDownloading) return;
+                setMonthDownloading(monthKey);
+                showToast(`⏳ ${monthLabel} raporları yükleniyor (${monthReports.length} rapor)...`, 'info');
+
+                try {
+                    // Tüm raporları tam veriyle (fotoğraf dahil) Firebase'den çek
+                    const fullReports = await Promise.all(
+                        monthReports
+                            .sort((a, b) => new Date(a.date) - new Date(b.date)) // Eskiden yeniye
+                            .map(r => storage.getReportById(r.id))
+                    );
+
+                    showToast(`📄 PDF oluşturuluyor...`, 'info');
+
+                    // Tüm raporların HTML'ini birleştir
+                    const combinedHTML = fullReports
+                        .filter(Boolean)
+                        .map(r => buildReportHTML(r, logo))
+                        .join('');
+
+                    const container = document.createElement('div');
+                    container.innerHTML = combinedHTML;
+                    container.style.cssText = 'position:fixed;top:-99999px;left:-99999px;width:210mm;';
+                    document.body.appendChild(container);
+
+                    const monthSlug = monthLabel.replace(/\s+/g, '_');
+                    const opt = {
+                        margin: 0,
+                        filename: `Gazioglu_${monthSlug}_Raporlar.pdf`,
+                        image: { type: 'jpeg', quality: 0.92 },
+                        html2canvas: { scale: 2, useCORS: true, allowTaint: true },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                        pagebreak: { mode: ['css', 'legacy'] }
+                    };
+
+                    await html2pdf().set(opt).from(container).save();
+                    document.body.removeChild(container);
+                    showToast(`✅ ${monthLabel} - ${fullReports.length} rapor PDF'e aktarıldı!`, 'success');
+                } catch (error) {
+                    console.error('Monthly PDF error:', error);
+                    showToast('❌ PDF oluşturma hatası', 'error');
+                } finally {
+                    setMonthDownloading(null);
+                }
+            };
+
+            // ========================================
             // EXCEL EXPORT
             // ========================================
             const exportToExcel = (report) => {
@@ -1795,10 +1965,7 @@
                                     groupReportsByMonth(reports).map(group => (
                                         <div key={group.key} className="rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm">
                                             {/* Ay başlığı */}
-                                            <button
-                                                onClick={() => toggleMonth(group.key)}
-                                                className="w-full flex items-center justify-between bg-white px-5 py-4 hover:bg-slate-50 transition-colors"
-                                            >
+                                            <div className="w-full flex items-center justify-between bg-white px-5 py-4 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => toggleMonth(group.key)}>
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xs uppercase">
                                                         {group.label.split(' ')[0].slice(0, 3)}
@@ -1808,10 +1975,24 @@
                                                         <p className="text-[10px] text-slate-400 font-bold">{group.reports.length} Rapor</p>
                                                     </div>
                                                 </div>
-                                                <div className={`transition-transform duration-200 text-slate-400 ${openMonths[group.key] ? 'rotate-180' : ''}`}>
-                                                    <Icon name="ChevronDown" size={20} />
+                                                <div className="flex items-center gap-2">
+                                                    {/* Toplu PDF indirme butonu */}
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); generateMonthPDF(group.key, group.label, group.reports); }}
+                                                        disabled={monthDownloading === group.key}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-black hover:bg-red-100 transition-colors disabled:opacity-50"
+                                                        title={`${group.label} - Tüm raporları PDF olarak indir`}
+                                                    >
+                                                        {monthDownloading === group.key
+                                                            ? <><Icon name="Loader" size={12} /> <span>İndiriliyor...</span></>
+                                                            : <><Icon name="FileDown" size={12} /> <span>PDF</span></>
+                                                        }
+                                                    </button>
+                                                    <div className={`transition-transform duration-200 text-slate-400 ${openMonths[group.key] ? 'rotate-180' : ''}`}>
+                                                        <Icon name="ChevronDown" size={20} />
+                                                    </div>
                                                 </div>
-                                            </button>
+                                            </div>
                                             {/* Raporlar listesi */}
                                             {openMonths[group.key] && (
                                                 <div className="divide-y divide-slate-50 bg-slate-50">
