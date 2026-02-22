@@ -1208,37 +1208,35 @@
 
 
             useEffect(() => {
-                (async () => {
-                    try {
-                        // Initialize Firebase (online only)
-                        await storage.init();
-                        showToast('🔥 Firebase bağlantısı kuruldu!', 'success');
-
-                        // Load data from Firebase
-                        const [reportsData, logoData, staffData] = await Promise.all([
-                            storage.getAllReports(),
-                            storage.getLogo(),
-                            storage.getAllStaff()
-                        ]);
-                        setReports(reportsData);
-                        setLogo(logoData);
-                        setSavedStaff(staffData);
-
-                        console.log('✅ Loaded', reportsData.length, 'reports from Firebase');
-                    } catch (error) {
-                        console.error('Init error:', error);
-                        showToast('⚠️ Firebase bağlantısı kurulamadı', 'error');
-                    } finally {
+                // Realtime Firebase listener - veriyi tek seferinde yükler ve anlık günceller
+                // setLoading(false) ilk veri gelince çağrılır
+                let firstLoad = true;
+                storage.onReportsChange((updatedReports) => {
+                    setReports(updatedReports);
+                    if (firstLoad) {
+                        firstLoad = false;
                         setLoading(false);
+                        console.log('✅ Firebase realtime: ' + updatedReports.length + ' rapor yüklendi');
                     }
-                })();
+                });
+
+                // Logo ve personel yükle (bunlar küçük)
+                storage.getLogo().then(setLogo).catch(console.error);
+                storage.getAllStaff().then(setSavedStaff).catch(console.error);
+
+                // Eğer 5 saniye içinde veri gelmezse loading'i kapat
+                const timeout = setTimeout(() => { setLoading(false); }, 5000);
+
+                return () => {
+                    storage.offReportsChange();
+                    clearTimeout(timeout);
+                };
             }, []);
 
             // Load montaj history from localStorage and update when reports change
             useEffect(() => {
                 const history = loadMontajHistory();
                 setMontajHistory(history);
-                console.log('📋 Montaj geçmişi yüklendi:', history);
             }, []);
 
             // Update montaj history when reports change
@@ -1256,38 +1254,13 @@
                     const checkAndInit = setInterval(() => {
                         if (typeof gapi !== 'undefined' && typeof google !== 'undefined') {
                             clearInterval(checkAndInit);
-
-                            // Initialize GAPI
-                            if (typeof gapiLoaded === 'function') {
-                                gapiLoaded();
-                            }
-
-                            // Initialize GIS
-                            if (typeof gisLoaded === 'function') {
-                                gisLoaded();
-                            }
+                            if (typeof gapiLoaded === 'function') gapiLoaded();
+                            if (typeof gisLoaded === 'function') gisLoaded();
                         }
                     }, 100);
-
                     setTimeout(() => clearInterval(checkAndInit), 10000);
                 };
-
                 initGoogleAPIs();
-            }, []);
-
-            // Realtime Firebase listener
-            useEffect(() => {
-                const unsubscribe = () => {
-                    storage.onReportsChange((updatedReports) => {
-                        setReports(updatedReports);
-                    });
-                };
-
-                unsubscribe();
-
-                return () => {
-                    storage.offReportsChange();
-                };
             }, []);
 
             useEffect(() => {
@@ -1369,8 +1342,7 @@
                 if (confirm('Bu raporu silmek istediğine emin misin Kerem Can?')) {
                     try {
                         await storage.deleteReport(id);
-                        const updatedReports = await storage.getAllReports();
-                        setReports(updatedReports);
+                        // Realtime listener otomatik günceller, ayrıca getAllReports gerekmez
                         showToast('Rapor silindi', 'success');
                     } catch (error) {
                         showToast('Silme işlemi başarısız', 'error');
@@ -1568,6 +1540,35 @@
                 }
             };
 
+            // ========================================
+            // AY BAZLI GRUPLAMA
+            // ========================================
+            const groupReportsByMonth = (reportsArr) => {
+                const groups = {};
+                reportsArr.forEach(report => {
+                    const d = new Date(report.date);
+                    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    const label = d.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });
+                    if (!groups[key]) groups[key] = { key, label, reports: [] };
+                    groups[key].reports.push(report);
+                });
+                // En yeni ay önce
+                return Object.values(groups).sort((a, b) => b.key.localeCompare(a.key));
+            };
+
+            const [openMonths, setOpenMonths] = useState({});
+            const toggleMonth = (key) => setOpenMonths(prev => ({ ...prev, [key]: !prev[key] }));
+
+            // İlk ay otomatik açık
+            useEffect(() => {
+                if (reports.length > 0) {
+                    const groups = groupReportsByMonth(reports);
+                    if (groups.length > 0) {
+                        setOpenMonths({ [groups[0].key]: true });
+                    }
+                }
+            }, [reports.length === 0]);
+
             // Views
             const Home = () => (
                 <div className="p-4 max-w-2xl mx-auto pb-48">
@@ -1698,17 +1699,17 @@
                                 </div>
                             )}
 
-                            <div className="space-y-4">
+                            <div className="space-y-3">
                                 {!reports || reports.length === 0 ? (
                                     <div className="text-center py-24 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
                                         <Icon name="FileText" size={64} className="mx-auto text-slate-100 mb-4" />
                                         <p className="text-slate-400 font-bold italic">Rapor listesi boş, Kerem Can.</p>
                                         <p className="text-slate-300 text-xs mt-2">Yeni bir rapor oluşturmak için aşağıdaki butona tıkla.</p>
                                     </div>
-                                ) : (
+                                ) : searchQuery.trim() ? (
+                                    /* Arama aktifken düz liste */
                                     (reports || [])
                                         .filter(report => {
-                                            if (!searchQuery.trim()) return true;
                                             const q = searchQuery.toLowerCase();
                                             return (
                                                 report.customer?.toLowerCase().includes(q) ||
@@ -1718,10 +1719,10 @@
                                         })
                                         .sort((a, b) => new Date(b.date) - new Date(a.date))
                                         .map(report => (
-                                            <div key={report.id} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex items-center justify-between active:scale-[0.97] transition-all">
+                                            <div key={report.id} className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 flex items-center justify-between active:scale-[0.97] transition-all">
                                                 <div className="flex-1 cursor-pointer" onClick={() => { setCurrentReport(report); setView('preview'); }}>
-                                                    <h3 className="font-black text-slate-800 text-xl leading-none">{new Date(report.date).toLocaleDateString('tr-TR')}</h3>
-                                                    <p className="text-xs text-slate-400 font-bold uppercase mt-2 tracking-tighter">{report.project}</p>
+                                                    <h3 className="font-black text-slate-800 text-lg leading-none">{new Date(report.date).toLocaleDateString('tr-TR')}</h3>
+                                                    <p className="text-xs text-slate-400 font-bold uppercase mt-1 tracking-tighter">{report.project}</p>
                                                     {report.materials && report.materials.length > 0 && (
                                                         <p className="text-[10px] text-blue-600 font-black mt-1">
                                                             {report.materials.reduce((sum, m) => sum + (m.totalWeight || 0), 0).toFixed(1)} KG
@@ -1729,21 +1730,68 @@
                                                     )}
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    <button onClick={() => { setCurrentReport(report); setView('edit'); }} className="p-4 text-blue-600 bg-blue-50 rounded-2xl hover:bg-blue-100 transition-colors" title="Düzenle"><Icon name="Pencil" /></button>
-                                                    <button onClick={() => {
-                                                        const newReport = {
-                                                            ...report,
-                                                            id: null,
-                                                            date: new Date().toISOString().split('T')[0]
-                                                        };
-                                                        setCurrentReport(newReport);
-                                                        setView('edit');
-                                                        showToast('Rapor kopyalandı, tarih bugüne ayarlandı', 'success');
-                                                    }} className="p-4 text-green-600 bg-green-50 rounded-2xl hover:bg-green-100 transition-colors" title="Kopyala"><Icon name="Copy" /></button>
-                                                    <button onClick={() => handleDelete(report.id)} className="p-4 text-red-500 bg-red-50 rounded-2xl hover:bg-red-100 transition-colors"><Icon name="Trash2" /></button>
+                                                    <button onClick={() => { setCurrentReport(report); setView('edit'); }} className="p-3 text-blue-600 bg-blue-50 rounded-2xl hover:bg-blue-100 transition-colors" title="Düzenle"><Icon name="Pencil" size={18} /></button>
+                                                    <button onClick={() => handleDelete(report.id)} className="p-3 text-red-500 bg-red-50 rounded-2xl hover:bg-red-100 transition-colors"><Icon name="Trash2" size={18} /></button>
                                                 </div>
                                             </div>
                                         ))
+                                ) : (
+                                    /* Normal görünüm: Aylık accordion */
+                                    groupReportsByMonth(reports).map(group => (
+                                        <div key={group.key} className="rounded-[2rem] overflow-hidden border border-slate-100 shadow-sm">
+                                            {/* Ay başlığı */}
+                                            <button
+                                                onClick={() => toggleMonth(group.key)}
+                                                className="w-full flex items-center justify-between bg-white px-5 py-4 hover:bg-slate-50 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xs uppercase">
+                                                        {group.label.split(' ')[0].slice(0, 3)}
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <p className="font-black text-slate-800 text-sm capitalize">{group.label}</p>
+                                                        <p className="text-[10px] text-slate-400 font-bold">{group.reports.length} Rapor</p>
+                                                    </div>
+                                                </div>
+                                                <div className={`transition-transform duration-200 text-slate-400 ${openMonths[group.key] ? 'rotate-180' : ''}`}>
+                                                    <Icon name="ChevronDown" size={20} />
+                                                </div>
+                                            </button>
+                                            {/* Raporlar listesi */}
+                                            {openMonths[group.key] && (
+                                                <div className="divide-y divide-slate-50 bg-slate-50">
+                                                    {group.reports
+                                                        .sort((a, b) => new Date(b.date) - new Date(a.date))
+                                                        .map(report => (
+                                                            <div key={report.id} className="flex items-center justify-between px-4 py-4 bg-white border-t border-slate-100 active:scale-[0.98] transition-all">
+                                                                <div className="flex-1 cursor-pointer" onClick={() => { setCurrentReport(report); setView('preview'); }}>
+                                                                    <h3 className="font-black text-slate-800 text-base leading-none">
+                                                                        {new Date(report.date).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', weekday: 'short' })}
+                                                                    </h3>
+                                                                    <p className="text-[11px] text-slate-400 font-bold uppercase mt-1 tracking-tighter">{report.project}</p>
+                                                                    {report.materials && report.materials.length > 0 && (
+                                                                        <p className="text-[10px] text-blue-500 font-black mt-0.5">
+                                                                            {report.materials.reduce((sum, m) => sum + (m.totalWeight || 0), 0).toFixed(1)} KG · {report.materials.length} kalem
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex gap-2 ml-2">
+                                                                    <button onClick={() => { setCurrentReport(report); setView('edit'); }} className="p-3 text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors" title="Düzenle"><Icon name="Pencil" size={16} /></button>
+                                                                    <button onClick={() => {
+                                                                        const newReport = { ...report, id: null, date: new Date().toISOString().split('T')[0] };
+                                                                        setCurrentReport(newReport);
+                                                                        setView('edit');
+                                                                        showToast('Rapor kopyalandı, tarih bugüne ayarlandı', 'success');
+                                                                    }} className="p-3 text-green-600 bg-green-50 rounded-xl hover:bg-green-100 transition-colors" title="Kopyala"><Icon name="Copy" size={16} /></button>
+                                                                    <button onClick={() => handleDelete(report.id)} className="p-3 text-red-500 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"><Icon name="Trash2" size={16} /></button>
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    }
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
                                 )}
                             </div>
 
