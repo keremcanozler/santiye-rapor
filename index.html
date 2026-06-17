@@ -1419,11 +1419,13 @@
             const handleExport = () => {
                 try {
                     const dataStr = JSON.stringify(reports, null, 2);
-                    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+                    const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
-                    link.setAttribute('href', dataUri);
+                    link.setAttribute('href', url);
                     link.setAttribute('download', `Gazioglu_Yedek_${new Date().toLocaleDateString('tr-TR')}.json`);
                     link.click();
+                    URL.revokeObjectURL(url); // Clean up memory
                     showToast('Veriler dışarı aktarıldı', 'success');
                 } catch (error) {
                     showToast('Dışarı aktarma başarısız', 'error');
