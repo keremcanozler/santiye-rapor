@@ -1416,9 +1416,12 @@
                 }
             };
 
-            const handleExport = () => {
+            const handleExport = async () => {
+                setLoading(true);
                 try {
-                    const dataStr = JSON.stringify(reports, null, 2);
+                    // Fetch FULL reports from Firebase including all photos
+                    const fullReports = await storage.getAllReports();
+                    const dataStr = JSON.stringify(fullReports, null, 2);
                     const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8;' });
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
@@ -1426,9 +1429,11 @@
                     link.setAttribute('download', `Gazioglu_Yedek_${new Date().toLocaleDateString('tr-TR')}.json`);
                     link.click();
                     URL.revokeObjectURL(url); // Clean up memory
-                    showToast('Veriler dışarı aktarıldı', 'success');
+                    showToast('Tüm veriler (fotoğraflar dahil) dışarı aktarıldı', 'success');
                 } catch (error) {
                     showToast('Dışarı aktarma başarısız', 'error');
+                } finally {
+                    setLoading(false);
                 }
             };
 
