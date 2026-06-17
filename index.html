@@ -1001,17 +1001,23 @@
         // AutocompleteInput - Custom dropdown with suggestions
         const AutocompleteInput = ({ placeholder, value, onChange, suggestions = [] }) => {
             const [showDropdown, setShowDropdown] = React.useState(false);
+            const [localValue, setLocalValue] = React.useState(value || '');
             const dropdownRef = React.useRef(null);
+
+            // Sync with external value if it changes
+            React.useEffect(() => {
+                setLocalValue(value || '');
+            }, [value]);
 
             // Filter suggestions based on input value
             const filteredSuggestions = React.useMemo(() => {
-                if (!value || value.trim() === '') {
+                if (!localValue || localValue.trim() === '') {
                     return suggestions;
                 }
                 return suggestions.filter(s =>
-                    s.toLowerCase().includes(value.toLowerCase())
+                    s.toLowerCase().includes(localValue.toLowerCase())
                 );
-            }, [value, suggestions]);
+            }, [localValue, suggestions]);
 
             // Close dropdown when clicking outside
             React.useEffect(() => {
@@ -1029,8 +1035,12 @@
                     <input
                         type="text"
                         placeholder={placeholder}
-                        value={value}
-                        onChange={(e) => onChange(e)}
+                        value={localValue}
+                        onChange={(e) => setLocalValue(e.target.value)}
+                        onBlur={(e) => {
+                            // Delay slightly to allow suggestion click to register
+                            setTimeout(() => onChange(e), 150);
+                        }}
                         onFocus={() => setShowDropdown(true)}
                         onClick={() => setShowDropdown(true)}
                         className="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold outline-none border-2 border-transparent focus:border-blue-400 transition-colors"
@@ -1041,6 +1051,7 @@
                                 <div
                                     key={idx}
                                     onClick={() => {
+                                        setLocalValue(suggestion);
                                         onChange({ target: { value: suggestion } });
                                         setShowDropdown(false);
                                     }}
