@@ -1037,9 +1037,9 @@
                         placeholder={placeholder}
                         value={localValue}
                         onChange={(e) => setLocalValue(e.target.value)}
-                        onBlur={(e) => {
+                        onBlur={() => {
                             // Delay slightly to allow suggestion click to register
-                            setTimeout(() => onChange(e), 150);
+                            setTimeout(() => onChange({ target: { value: localValue } }), 150);
                         }}
                         onFocus={() => setShowDropdown(true)}
                         onClick={() => setShowDropdown(true)}
@@ -2234,32 +2234,7 @@
                             {(currentReport.materials || []).map((m, i) => (
                                 <div
                                     key={i}
-                                    draggable="true"
-                                    onDragStart={(e) => {
-                                        e.dataTransfer.effectAllowed = 'move';
-                                        e.dataTransfer.setData('materialIndex', i);
-                                        e.currentTarget.style.opacity = '0.5';
-                                    }}
-                                    onDragEnd={(e) => {
-                                        e.currentTarget.style.opacity = '1';
-                                    }}
-                                    onDragOver={(e) => {
-                                        e.preventDefault();
-                                        e.dataTransfer.dropEffect = 'move';
-                                    }}
-                                    onDrop={(e) => {
-                                        e.preventDefault();
-                                        const fromIndex = parseInt(e.dataTransfer.getData('materialIndex'));
-                                        const toIndex = i;
-                                        if (fromIndex !== toIndex) {
-                                            const newMaterials = [...currentReport.materials];
-                                            const [moved] = newMaterials.splice(fromIndex, 1);
-                                            newMaterials.splice(toIndex, 0, moved);
-                                            setCurrentReport({ ...currentReport, materials: newMaterials });
-                                            showToast('Montaj sırası değiştirildi', 'success');
-                                        }
-                                    }}
-                                    className="p-5 bg-slate-50 rounded-[1.5rem] border relative space-y-3 cursor-move hover:border-blue-300 transition-all"
+                                    className="p-5 bg-slate-50 rounded-[1.5rem] border relative space-y-3 hover:border-blue-300 transition-all"
                                 >
                                     <div className="absolute -top-2 -left-2 bg-slate-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-black">
                                         {i + 1}
