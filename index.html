@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#2563eb">
-    <title>Gazioğlu Endüstriyel - Şantiye Rapor Sistemi v7 (Firebase Cloud)</title>
+    <title>Gazioğlu Endüstriyel - Şantiye Rapor Sistemi v7.1 (Firebase Cloud)</title>
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
@@ -1418,20 +1418,25 @@
 
             const handleExport = async () => {
                 setLoading(true);
+                showToast('📦 Yedek hazırlanıyor, lütfen bekleyin...', 'info');
                 try {
                     // Fetch FULL reports from Firebase including all photos
                     const fullReports = await storage.getAllReports();
                     const dataStr = JSON.stringify(fullReports, null, 2);
                     const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8;' });
+                    const sizeMB = (blob.size / (1024 * 1024)).toFixed(1);
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.setAttribute('href', url);
                     link.setAttribute('download', `Gazioglu_Yedek_${new Date().toLocaleDateString('tr-TR')}.json`);
+                    document.body.appendChild(link);
                     link.click();
-                    URL.revokeObjectURL(url); // Clean up memory
-                    showToast('Tüm veriler (fotoğraflar dahil) dışarı aktarıldı', 'success');
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    showToast(`✅ ${fullReports.length} rapor, ${sizeMB} MB yedek indirildi`, 'success');
                 } catch (error) {
-                    showToast('Dışarı aktarma başarısız', 'error');
+                    console.error('Export error:', error);
+                    showToast('Dışarı aktarma başarısız: ' + error.message, 'error');
                 } finally {
                     setLoading(false);
                 }
