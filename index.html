@@ -1243,6 +1243,8 @@
                 materials: []
             });
 
+            // Montaj Picker Modal state
+            const [montajPicker, setMontajPicker] = React.useState({ open: false, step: 'report', selectedReport: null, checkedItems: {} });
             // ========================================
             // NETWORK STATUS CHECK
             // ========================================
@@ -2366,7 +2368,16 @@
                         <section className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 text-blue-600"><Icon name="Package" size={18} /> <span className="font-black text-xs uppercase">Montaj</span></div>
-                                <button onClick={() => setCurrentReport({ ...currentReport, materials: [...(currentReport.materials || []), { projectNo: '', assemblyNo: '', material: '', quantity: 0, unitWeight: 0, totalWeight: 0 }] })} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"><Icon name="Plus" /></button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setMontajPicker({ open: true, step: 'report', selectedReport: null, checkedItems: {} })}
+                                        className="p-2 bg-purple-50 text-purple-600 rounded-xl hover:bg-purple-100 transition-colors"
+                                        title="Önceki Rapordan Getir"
+                                    >
+                                        <Icon name="ClipboardList" size={18} />
+                                    </button>
+                                    <button onClick={() => setCurrentReport({ ...currentReport, materials: [...(currentReport.materials || []), { projectNo: '', assemblyNo: '', material: '', quantity: 0, unitWeight: 0, totalWeight: 0 }] })} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"><Icon name="Plus" /></button>
+                                </div>
                             </div>
                             {(currentReport.materials || []).map((m, i) => (
                                 <div
@@ -2869,7 +2880,129 @@
                     {view === 'edit' && <Editor />}
                     {view === 'personnel' && <PersonnelManagement />}
                     {view === 'preview' && <Preview />}
-                </div>
+                    {/* Montaj Picker Modal */}
+                {montajPicker.open && (
+                    <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center p-4" onClick={() => setMontajPicker({ open: false, step: 'report', selectedReport: null, checkedItems: {} })}>
+                        <div className="bg-white rounded-[2rem] w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+
+                            {/* Header */}
+                            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+                                <div className="flex items-center gap-2">
+                                    {montajPicker.step === 'items' && (
+                                        <button onClick={() => setMontajPicker(p => ({ ...p, step: 'report', selectedReport: null, checkedItems: {} }))} className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                                            <Icon name="ChevronLeft" size={20} className="text-slate-500" />
+                                        </button>
+                                    )}
+                                    <div>
+                                        <p className="font-black text-sm text-slate-800">
+                                            {montajPicker.step === 'report' ? '📋 Önceki Rapordan Montaj Getir' : `📦 ${montajPicker.selectedReport?.date} — Montaj Seç`}
+                                        </p>
+                                        <p className="text-[10px] text-slate-400 font-medium">
+                                            {montajPicker.step === 'report' ? 'Hangi rapordaki montajı almak istiyorsun?' : 'Eklemek istediğin kalemleri seç'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setMontajPicker({ open: false, step: 'report', selectedReport: null, checkedItems: {} })} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
+                                    <Icon name="X" size={18} className="text-slate-400" />
+                                </button>
+                            </div>
+
+                            {/* Body */}
+                            <div className="overflow-y-auto flex-1 p-4 space-y-2">
+                                {montajPicker.step === 'report' && (() => {
+                                    const reportsWithMontaj = [...reports]
+                                        .filter(r => r.id !== currentReport.id && Array.isArray(r.materials) && r.materials.length > 0)
+                                        .sort((a, b) => new Date(b.date) - new Date(a.date));
+                                    if (reportsWithMontaj.length === 0) {
+                                        return <p className="text-center text-slate-400 text-sm py-8 font-medium">Montajlı rapor bulunamadı.</p>;
+                                    }
+                                    return reportsWithMontaj.map(r => (
+                                        <button
+                                            key={r.id}
+                                            onClick={async () => {
+                                                // Fetch full report to get complete materials
+                                                let fullReport = r;
+                                                try { fullReport = await storage.getReportById(r.id) || r; } catch(e) {}
+                                                setMontajPicker(p => ({ ...p, step: 'items', selectedReport: fullReport, checkedItems: {} }));
+                                            }}
+                                            className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-purple-50 hover:border-purple-300 border border-slate-200 rounded-2xl transition-all text-left"
+                                        >
+                                            <div>
+                                                <p className="font-black text-sm text-slate-700">{new Date(r.date).toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric', month: 'long' })}</p>
+                                                <p className="text-[11px] text-slate-400 font-medium mt-0.5">{r.customer || r.project || 'Müşteri belirtilmemiş'}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="bg-purple-100 text-purple-700 text-[10px] font-black px-2 py-1 rounded-lg">{r.materials.length} kalem</span>
+                                                <Icon name="ChevronRight" size={16} className="text-slate-300" />
+                                            </div>
+                                        </button>
+                                    ));
+                                })()}
+
+                                {montajPicker.step === 'items' && montajPicker.selectedReport && (() => {
+                                    const items = montajPicker.selectedReport.materials || [];
+                                    return (
+                                        <>
+                                            <div className="flex justify-between mb-2">
+                                                <button onClick={() => {
+                                                    const all = {};
+                                                    items.forEach((_, i) => { all[i] = true; });
+                                                    setMontajPicker(p => ({ ...p, checkedItems: all }));
+                                                }} className="text-[11px] font-black text-purple-600 hover:underline">Tümünü Seç</button>
+                                                <button onClick={() => setMontajPicker(p => ({ ...p, checkedItems: {} }))} className="text-[11px] font-black text-slate-400 hover:underline">Hiçbirini Seçme</button>
+                                            </div>
+                                            {items.map((m, i) => (
+                                                <label key={i} className={`flex items-start gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${montajPicker.checkedItems[i] ? 'bg-purple-50 border-purple-400' : 'bg-slate-50 border-transparent'}`}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!montajPicker.checkedItems[i]}
+                                                        onChange={e => setMontajPicker(p => ({ ...p, checkedItems: { ...p.checkedItems, [i]: e.target.checked } }))}
+                                                        className="mt-1 w-4 h-4 accent-purple-600 flex-shrink-0"
+                                                    />
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-black text-sm text-slate-700 truncate">{m.material || 'Malzeme belirtilmemiş'}</p>
+                                                        <div className="flex flex-wrap gap-2 mt-1">
+                                                            {m.projectNo && <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded font-bold">Prj: {m.projectNo}</span>}
+                                                            {m.assemblyNo && <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">Mnt: {m.assemblyNo}</span>}
+                                                            {m.quantity > 0 && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold">{m.quantity} adet</span>}
+                                                            {m.unitWeight > 0 && <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-bold">{m.unitWeight} kg/adet</span>}
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            ))}
+                                        </>
+                                    );
+                                })()}
+                            </div>
+
+                            {/* Footer - only on items step */}
+                            {montajPicker.step === 'items' && (() => {
+                                const selectedCount = Object.values(montajPicker.checkedItems).filter(Boolean).length;
+                                return (
+                                    <div className="p-4 border-t border-slate-100">
+                                        <button
+                                            disabled={selectedCount === 0}
+                                            onClick={() => {
+                                                const items = montajPicker.selectedReport.materials || [];
+                                                const toAdd = items.filter((_, i) => montajPicker.checkedItems[i]);
+                                                setCurrentReport(prev => ({
+                                                    ...prev,
+                                                    materials: [...(prev.materials || []), ...toAdd]
+                                                }));
+                                                showToast(`✅ ${toAdd.length} montaj kalemi eklendi`, 'success');
+                                                setMontajPicker({ open: false, step: 'report', selectedReport: null, checkedItems: {} });
+                                            }}
+                                            className="w-full bg-purple-600 text-white py-3 rounded-2xl font-black text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-purple-700 transition-colors"
+                                        >
+                                            {selectedCount > 0 ? `${selectedCount} Kalemi Ekle` : 'Kalem Seçiniz'}
+                                        </button>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    </div>
+                )}
+            </div>
             );
         };
 
