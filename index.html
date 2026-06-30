@@ -1003,6 +1003,7 @@
             const [showDropdown, setShowDropdown] = React.useState(false);
             const [localValue, setLocalValue] = React.useState(value || '');
             const dropdownRef = React.useRef(null);
+            const suggestionClickedRef = React.useRef(false);
 
             // Sync with external value if it changes
             React.useEffect(() => {
@@ -1038,18 +1039,22 @@
                         value={localValue}
                         onChange={(e) => setLocalValue(e.target.value)}
                         onBlur={() => {
-                            // Delay slightly to allow suggestion click to register
-                            setTimeout(() => onChange({ target: { value: localValue } }), 150);
+                            if (suggestionClickedRef.current) {
+                                suggestionClickedRef.current = false;
+                                return;
+                            }
+                            onChange({ target: { value: localValue } });
                         }}
                         onFocus={() => setShowDropdown(true)}
                         onClick={() => setShowDropdown(true)}
                         className="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold outline-none border-2 border-transparent focus:border-blue-400 transition-colors"
                     />
-                    {showDropdown && suggestions.length > 0 && (
+                    {showDropdown && filteredSuggestions.length > 0 && (
                         <div className="absolute z-50 w-full mt-1 bg-white border-2 border-blue-400 rounded-xl shadow-lg max-h-48 overflow-y-auto">
                             {filteredSuggestions.map((suggestion, idx) => (
                                 <div
                                     key={idx}
+                                    onMouseDown={() => { suggestionClickedRef.current = true; }}
                                     onClick={() => {
                                         setLocalValue(suggestion);
                                         onChange({ target: { value: suggestion } });
