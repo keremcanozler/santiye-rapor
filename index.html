@@ -43,6 +43,7 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
 
     <!-- Google Drive API -->
     <script src="https://apis.google.com/js/api.js"></script>
@@ -156,6 +157,27 @@
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
+        const firebaseStorage = firebase.storage();
+
+        // Upload a base64 dataURL or Blob to Firebase Storage, return download URL
+        async function uploadPhotoToStorage(base64DataUrl, reportId, index) {
+            let blob;
+            if (typeof base64DataUrl === 'string' && base64DataUrl.startsWith('data:')) {
+                const [header, data] = base64DataUrl.split(',');
+                const mimeType = header.match(/:(.*?);/)[1];
+                const byteChars = atob(data);
+                const byteArr = new Uint8Array(byteChars.length);
+                for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+                const ext = mimeType.includes('webp') ? 'webp' : mimeType.includes('png') ? 'png' : 'jpg';
+                blob = new Blob([byteArr], { type: mimeType });
+                const storagePath = `report-photos/${reportId}/photo_${index}_${Date.now()}.${ext}`;
+                const ref = firebaseStorage.ref(storagePath);
+                await ref.put(blob);
+                return await ref.getDownloadURL();
+            }
+            // Already a URL, return as-is
+            return base64DataUrl;
+        }
 
         class FirebaseManager {
             constructor() {
@@ -1497,34 +1519,97 @@
                 if (files.length === 0) return;
 
                 setCompressingPhotos(true);
-                const compressedPhotos = [];
 
                 try {
+                    const uploadedPhotos = [];
                     for (const file of files) {
                         if (!file.type.startsWith('image/')) {
                             showToast(`${file.name} bir görsel dosyası değil`, 'warning');
                             continue;
                         }
-
+                        // Compress first
                         const compressed = await compressImage(file);
-                        compressedPhotos.push(compressed);
+                        // Upload to Firebase Storage (use report id or temp id)
+                        const reportId = currentReport.id || `temp_${Date.now()}`;
+                        try {
+                            showToast('📤 Fotoğraf yükleniyor...', 'info');
+                            const url = await uploadPhotoToStorage(compressed, reportId, uploadedPhotos.length);
+                            uploadedPhotos.push(url);
+                        } catch (storageErr) {
+                            console.warn('Storage upload failed, using base64 fallback:', storageErr);
+                            uploadedPhotos.push(compressed); // offline fallback
+                        }
                     }
 
                     setCurrentReport(prev => {
-                        // Güvenli spread - prev.photos undefined olabilir
                         const existingPhotos = Array.isArray(prev.photos) ? prev.photos : [];
-                        return {
-                            ...prev,
-                            photos: [...existingPhotos, ...compressedPhotos]
-                        };
+                        return { ...prev, photos: [...existingPhotos, ...uploadedPhotos] };
                     });
 
-                    showToast(`${compressedPhotos.length} fotoğraf eklendi`, 'success');
+                    showToast(`✅ ${uploadedPhotos.length} fotoğraf yüklendi`, 'success');
                 } catch (error) {
                     console.error('Fotoğraf yükleme hatası:', error);
                     showToast('❌ Fotoğraf yükleme hatası: ' + error.message, 'error');
                 } finally {
                     setCompressingPhotos(false);
+                    // Reset file input
+                    e.target.value = '';
+                }
+            };
+
+            // ========================================
+            // PHOTO MIGRATION — Base64 → Firebase Storage
+            // ========================================
+            const [migrating, setMigrating] = React.useState(false);
+            const [migrateProgress, setMigrateProgress] = React.useState(null);
+
+            const migratePhotosToStorage = async () => {
+                if (!confirm('Mevcut tüm fotoğraflar Firebase Storage\'a taşınacak. Bu işlem birkaç dakika sürebilir. Devam edilsin mi?')) return;
+                setMigrating(true);
+                setMigrateProgress({ done: 0, total: 0, errors: 0 });
+                try {
+                    const allReports = await storage.getAllReports();
+                    const reportsWithBase64 = allReports.filter(r =>
+                        Array.isArray(r.photos) && r.photos.some(p => typeof p === 'string' && p.startsWith('data:'))
+                    );
+                    setMigrateProgress({ done: 0, total: reportsWithBase64.length, errors: 0 });
+
+                    if (reportsWithBase64.length === 0) {
+                        showToast('✅ Tüm fotoğraflar zaten Storage\'da!', 'success');
+                        setMigrating(false);
+                        setMigrateProgress(null);
+                        return;
+                    }
+
+                    let done = 0, errors = 0;
+                    for (const report of reportsWithBase64) {
+                        try {
+                            const newPhotos = [];
+                            for (let i = 0; i < report.photos.length; i++) {
+                                const p = report.photos[i];
+                                if (typeof p === 'string' && p.startsWith('data:')) {
+                                    const url = await uploadPhotoToStorage(p, report.id, i);
+                                    newPhotos.push(url);
+                                } else {
+                                    newPhotos.push(p); // already a URL
+                                }
+                            }
+                            await database.ref('reports').child(report.id).update({ photos: newPhotos });
+                            done++;
+                            setMigrateProgress(prev => ({ ...prev, done }));
+                        } catch (err) {
+                            console.error('Migration error for report:', report.id, err);
+                            errors++;
+                            done++;
+                            setMigrateProgress(prev => ({ ...prev, done, errors: prev.errors + 1 }));
+                        }
+                    }
+                    showToast(`✅ Migrasyon tamamlandı: ${done - errors} rapor, ${errors} hata`, errors > 0 ? 'warning' : 'success');
+                } catch (err) {
+                    showToast('❌ Migrasyon başarısız: ' + err.message, 'error');
+                } finally {
+                    setMigrating(false);
+                    setMigrateProgress(null);
                 }
             };
 
@@ -1939,6 +2024,41 @@
                                                     Raporlar bulutta saklanıyor - <span className="font-black">Tüm cihazlarda senkronize</span>!
                                                     Telefonda kaydedersen bilgisayarda görürsün.
                                                 </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Firebase Storage Migration */}
+                                    <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4">
+                                        <div className="flex items-start gap-3">
+                                            <Icon name="HardDrive" size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                                            <div className="flex-1">
+                                                <p className="text-xs font-black text-blue-900 uppercase mb-1">📦 Fotoğraf Migrasyonu</p>
+                                                <p className="text-[10px] text-blue-800 leading-relaxed mb-3">
+                                                    Mevcut fotoğrafları Firebase Storage'a taşı. Bu işlemden sonra uygulama <span className="font-black">çok daha hızlı</span> açılır ve mobil veri tasarrufu sağlar. Tek seferlik bir işlemdir.
+                                                </p>
+                                                {migrateProgress && (
+                                                    <div className="mb-3">
+                                                        <div className="h-2 bg-blue-200 rounded-full overflow-hidden">
+                                                            <div
+                                                                className="h-2 bg-blue-600 rounded-full transition-all"
+                                                                style={{ width: `${migrateProgress.total > 0 ? (migrateProgress.done / migrateProgress.total) * 100 : 0}%` }}
+                                                            />
+                                                        </div>
+                                                        <p className="text-[10px] text-blue-700 mt-1 font-bold">
+                                                            {migrateProgress.done} / {migrateProgress.total} rapor işlendi
+                                                            {migrateProgress.errors > 0 && ` (${migrateProgress.errors} hata)`}
+                                                        </p>
+                                                    </div>
+                                                )}
+                                                <button
+                                                    onClick={migratePhotosToStorage}
+                                                    disabled={migrating}
+                                                    className="w-full bg-blue-600 text-white px-4 py-3 rounded-xl text-xs font-black uppercase hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                                >
+                                                    <Icon name="Upload" size={16} />
+                                                    {migrating ? 'Taşınıyor...' : 'Fotoğrafları Storage\'a Taşı'}
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
