@@ -763,24 +763,9 @@
 
 
         // --- Icons Helper ---
-        const Icon = ({ name, size = 20, className = "" }) => {
-            // Lucide icon format: ["svg", defaultAttrs, [[childTag, childAttrs], ...]]
-            const renderChild = ([tag, attrs, grandchildren], i) =>
-                React.createElement(tag, { key: i, ...attrs },
-                    ...(grandchildren || []).map((gc, j) => renderChild(gc, j))
-                );
+        const Icon = ({ name, size = 20, className = "" }) =>
+            <i data-lucide={name} className={className} style={{ width: size, height: size, display: 'inline-block' }}></i>;
 
-            const iconData = lucide[name] || lucide['HelpCircle'];
-            if (!iconData) return null;
-
-            const [, defaultAttrs, children] = iconData;
-            return React.createElement('svg', {
-                ...defaultAttrs,
-                width: size,
-                height: size,
-                className
-            }, ...(children || []).map(renderChild));
-        };
 
         const WEATHER_OPTIONS = [
             { id: 'gunesli', label: 'Güneşli', icon: 'Sun' },
@@ -1259,6 +1244,13 @@
 
             // Montaj Picker Modal state
             const [montajPicker, setMontajPicker] = React.useState({ open: false, step: 'report', selectedReport: null, checkedItems: {} });
+
+            // Re-run lucide.createIcons() after EVERY render so icons never disappear
+            React.useEffect(() => {
+                if (window.lucide && lucide.createIcons) {
+                    lucide.createIcons();
+                }
+            });
             // ========================================
             // NETWORK STATUS CHECK
             // ========================================
